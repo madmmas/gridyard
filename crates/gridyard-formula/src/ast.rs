@@ -40,6 +40,10 @@ pub enum UnaryOp {
 pub enum Expr {
     /// Numeric literal.
     Number(f64),
+    /// String literal (`"hello"`).
+    Text(String),
+    /// Boolean literal (`TRUE` / `FALSE`).
+    Bool(bool),
     /// Single cell reference (`A1`).
     CellRef(CellId),
     /// Inclusive cell range (`A1:A8`).
@@ -48,6 +52,13 @@ pub enum Expr {
         start: CellId,
         /// End corner of the range.
         end: CellId,
+    },
+    /// Function call (`SUM(1, 2)`).
+    Call {
+        /// Function name as written (letter case preserved).
+        name: String,
+        /// Argument expressions, in order.
+        args: Vec<NodeId>,
     },
     /// Unary operator applied to a child node.
     Unary {
@@ -101,9 +112,20 @@ impl Ast {
     fn format_node(&self, id: NodeId) -> String {
         match self.node(id) {
             Expr::Number(n) => format_number(*n),
+            Expr::Text(s) => format!("\"{s}\""),
+            Expr::Bool(true) => "TRUE".to_string(),
+            Expr::Bool(false) => "FALSE".to_string(),
             Expr::CellRef(cell) => format_cell(*cell),
             Expr::Range { start, end } => {
                 format!("{}:{}", format_cell(*start), format_cell(*end))
+            }
+            Expr::Call { name, args } => {
+                let joined = args
+                    .iter()
+                    .map(|a| self.format_node(*a))
+                    .collect::<Vec<_>>()
+                    .join(",");
+                format!("{name}({joined})")
             }
             Expr::Unary { op, expr } => {
                 let op = match op {

@@ -2,10 +2,12 @@
 //!
 //! Grammar (v0.1):
 //! ```text
-//! expr   = term (("+" | "-") term)*
-//! term   = unary (("*" | "/") unary)*
-//! unary  = ("+" | "-") unary | primary
-//! primary = number | cell_ref | cell_ref ":" cell_ref | "(" expr ")"
+//! expr    = term (("+" | "-") term)*
+//! term    = unary (("*" | "/") unary)*
+//! unary   = ("+" | "-") unary | primary
+//! primary = number | string | bool | call | cell_ref
+//!         | cell_ref ":" cell_ref | "(" expr ")"
+//! call    = ident "(" [expr ("," expr)*] ")"
 //! ```
 
 use gridyard_core::cell_id;
@@ -114,10 +116,27 @@ impl<'a> Parser<'a> {
                 self.bump();
                 Ok(self.push(Expr::Number(n)))
             }
+            TokenKind::String(s) => {
+                let s = s.clone();
+                self.bump();
+                Ok(self.push(Expr::Text(s)))
+            }
             TokenKind::Ident(name) => {
                 let start_pos = tok.start;
                 let name = name.clone();
                 self.bump();
+
+                if matches!(self.peek().kind, TokenKind::LParen) {
+                    return self.parse_call_args(name);
+                }
+
+                if name.eq_ignore_ascii_case("TRUE") {
+                    return Ok(self.push(Expr::Bool(true)));
+                }
+                if name.eq_ignore_ascii_case("FALSE") {
+                    return Ok(self.push(Expr::Bool(false)));
+                }
+
                 let (row, col) = parse_a1(&name, start_pos)?;
                 let start_id = cell_id(row, col);
 
@@ -157,6 +176,38 @@ impl<'a> Parser<'a> {
             }
             TokenKind::Eof => Err(ParseError::new(tok.start, "unexpected end of formula")),
             _ => Err(ParseError::new(tok.start, "unexpected token in expression")),
+        }
+    }
+
+    fn parse_call_args(&mut self, name: String) -> Result<NodeId, ParseError> {
+        let open = self.bump(); // '('
+        debug_assert!(matches!(open.kind, TokenKind::LParen));
+
+        let mut args = Vec::new();
+        if !matches!(self.peek().kind, TokenKind::RParen) {
+            loop {
+                args.push(self.parse_expr()?);
+                match self.peek().kind {
+                    TokenKind::Comma => {
+                        self.bump();
+                    }
+                    TokenKind::RParen => break,
+                    _ => {
+                        return Err(ParseError::new(
+                            self.peek().start,
+                            "expected `,` or `)` in function arguments",
+                        ));
+                    }
+                }
+            }
+        }
+
+        match self.peek().kind {
+            TokenKind::RParen => {
+                self.bump();
+                Ok(self.push(Expr::Call { name, args }))
+            }
+            _ => Err(ParseError::new(open.start, "unclosed `(` in function call")),
         }
     }
 
@@ -228,6 +279,21 @@ mod tests {
     }
 
     #[test]
+    fn parses_function_calls_and_literals() {
+        let cases: &[(&str, &str)] = &[
+            ("SUM(1,2,3)", "SUM(1,2,3)"),
+            ("AVERAGE(A1:A8)", "AVERAGE(r0c0:r7c0)"),
+            (r#"IF(TRUE,"yes","no")"#, r#"IF(TRUE,"yes","no")"#),
+            ("SUM()", "SUM()"),
+        ];
+        for &(src, expected) in cases {
+            let ast = parse_formula(src).unwrap_or_else(|e| panic!("parse `{src}`: {e}"));
+            assert_eq!(ast.parenthesized(), expected, "src={src}");
+            assert!(matches!(ast.node(ast.root()), Expr::Call { .. }));
+        }
+    }
+
+    #[test]
     fn malformed_input_reports_position() {
         let cases: &[(&str, usize)] = &[
             ("", 0),
@@ -237,6 +303,7 @@ mod tests {
             ("A1:", 3),
             ("1 2", 2),
             ("$$$", 0),
+            ("SUM(1,)", 6),
         ];
 
         for &(src, position) in cases {

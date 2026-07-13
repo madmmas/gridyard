@@ -1,0 +1,26 @@
+---
+description: Working with the mock server and fixture data
+globs: apps/mock-server/**
+alwaysApply: false
+---
+
+# Mock server and fixtures
+
+`apps/mock-server` serves the mock JSON fixtures behind a REST-shaped
+API (via `json-server`) so `@gridyard/workspace-runtime`'s REST adapter
+(`docs/04-layout-and-permission-engine-spec.md`) has something real to
+point at before an actual backend exists.
+
+- Fixtures live in `apps/mock-server/db.json`, one top-level collection
+  per entity (`loans`, `employees`, `invoices`, and so on).
+- A new workspace definition that needs mock data should add a new
+  collection here rather than inlining fixture data inside application
+  or package code.
+- Keep fixture data consistent with the examples already used across
+  `docs/03-workspace-schema-spec.md` and the UI mockups (same borrower
+  names, same field names) — it makes it obvious when a spec example
+  and the running mock diverge.
+- This is a development-time stand-in, not a real adapter
+  implementation — don't add real business logic (validation,
+  computed fields, auth) here. That belongs in
+  `@gridyard/workspace-runtime` once a real adapter is built.

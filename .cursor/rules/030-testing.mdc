@@ -1,0 +1,26 @@
+---
+description: Unit testing policy across the whole repo
+alwaysApply: true
+---
+
+# Testing policy
+
+Every new piece of code — Rust or TypeScript — ships with unit tests in
+the same change, not as a follow-up task. A PR (or a Cursor-generated
+change) that adds real logic without a test alongside it isn't done.
+
+- Rust: `cargo test --workspace` must pass. Tests live inline in the
+  module they test, via `#[cfg(test)] mod tests` — see
+  `.cursor/rules/010-rust.mdc`.
+- TypeScript: `npm test --workspaces --if-present` (Vitest) must pass.
+  Tests are colocated as `<file>.test.ts` next to the file they test —
+  see `.cursor/rules/020-typescript.mdc`.
+- CI runs both on every push and PR (`.github/workflows/ci.yml`).
+  Treat CI passing as the floor, not the goal — a change that adds
+  code without a test but happens to not break CI is still incomplete.
+
+Coverage as a percentage isn't the target; behavior coverage is. A
+test should fail if the behavior it documents breaks — not just
+execute a line for the sake of a coverage number. Prefer a few sharp
+tests that pin down real behavior (including edge cases) over many
+shallow ones that only exercise the happy path.

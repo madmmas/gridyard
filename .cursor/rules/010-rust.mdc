@@ -1,0 +1,40 @@
+---
+description: Rust coding standards for crates/
+globs: crates/**/*.rs
+alwaysApply: false
+---
+
+# Rust standards
+
+- Prefer `Result<T, E>` over panics. `unwrap`/`expect` are for tests
+  and truly-unreachable invariants only, never for handling real input
+  or IO.
+- Borrow before you clone. A `.clone()` needs a reason (crossing an
+  ownership boundary, needed for a later mutation) — don't reach for it
+  by default to make the borrow checker quiet.
+- Arena allocation (`slotmap` / `generational-arena`) for AST and graph
+  nodes, not `Box<Node>` trees — see `docs/01-grid-engine-core-spec.md`.
+  This avoids per-node heap churn on the hot paths (parsing, formula
+  evaluation, dependency recalculation).
+- Public items (`pub fn`, `pub struct`, `pub enum`, `pub trait`) get a
+  `///` doc comment explaining what they do, not just their signature
+  restated in prose.
+- `cargo fmt --check` and `cargo clippy --workspace --all-targets -- -D
+  warnings` must both be clean before a change is done — this is what
+  CI enforces, don't leave it to CI to catch first.
+
+## Unit tests
+
+Every module ships its tests inline via `#[cfg(test)] mod tests`,
+colocated in the same file as the code it tests. Every public function
+gets at minimum one test for its primary behavior and one for an edge
+case — empty input, a boundary value, or an error path, whichever is
+relevant.
+
+For functions with many input variations (formula parsing, cell ID
+packing, dependency graph traversal), prefer a table-driven test: one
+`#[test]` function iterating over a slice of `(input, expected)` cases,
+rather than a wall of near-identical individual test functions.
+
+See `crates/gridyard-core/src/lib.rs`'s `cell_id` function and its
+tests for the pattern this repo follows.

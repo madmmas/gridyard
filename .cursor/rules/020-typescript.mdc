@@ -1,0 +1,34 @@
+---
+description: TypeScript coding standards for packages/ and apps/
+globs: packages/**/*.ts,apps/**/*.ts
+alwaysApply: false
+---
+
+# TypeScript standards
+
+- Strict mode on (`tsconfig` `strict: true`). No implicit `any`. An
+  explicit `any` needs a `// eslint-disable` (or equivalent) comment
+  explaining why it's unavoidable, not a silent escape hatch.
+- Exported functions declare an explicit return type — don't rely on
+  inference at the public boundary, even where TypeScript could work
+  it out.
+- Named exports only, no `export default` — keeps renames and
+  cross-package refactors mechanical instead of ambiguous.
+- Keep `packages/` framework-agnostic where it can be. The React-vs-Solid
+  choice (`docs/00-index-and-vision.md`, open question) stays isolated
+  to `apps/` and `@gridyard/ui-kit` — don't let it leak into
+  `@gridyard/grid-renderer`'s core rendering logic or
+  `@gridyard/workspace-runtime`'s layout/permission logic.
+- Prefer returning new values over mutating arguments in place,
+  especially anywhere touching workspace schema objects — mutation
+  there is an easy source of bugs once permission/layout inheritance
+  (`docs/04-layout-and-permission-engine-spec.md`) is implemented.
+
+## Unit tests
+
+Every exported function or class ships a colocated `<file>.test.ts`
+next to the file it tests, using Vitest. Cover the happy path and at
+least one edge case (empty input, a boundary value, or an error path).
+
+See `packages/grid-renderer/src/index.test.ts` for the pattern this
+repo follows.

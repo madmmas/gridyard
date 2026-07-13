@@ -1,0 +1,45 @@
+---
+description: Gridyard project overview and module boundaries
+alwaysApply: true
+---
+
+# Gridyard
+
+A business workspace engine: a Rust/WASM spreadsheet-grade grid and
+formula core, driven by declarative workspace definitions. Full vision
+and architecture: `docs/00-index-and-vision.md`. The complete spec set
+is `docs/00` through `docs/07` — read the relevant spec before
+generating code for a given area, don't guess at behavior that's
+already been decided there.
+
+## Module boundaries
+
+- `crates/` — the Rust/WASM engine. Only `gridyard-wasm` may depend on
+  `wasm-bindgen`/`web-sys`. Every other crate (`gridyard-core`,
+  `gridyard-formula`, `gridyard-graph`, `gridyard-grid`, `gridyard-io`)
+  must stay plain, natively testable Rust with zero WASM dependency —
+  this is deliberate, see `docs/07-repo-scaffolding-spec.md`.
+- `packages/` — the TypeScript layer (`@gridyard/grid-renderer`,
+  `@gridyard/workspace-runtime`, `@gridyard/ui-kit`). No Rust, no
+  business logic that belongs in the engine — these consume the WASM
+  boundary, they don't duplicate what it does.
+- `apps/web-demo` — wires the packages together into a real app.
+- `apps/mock-server` — serves mock JSON fixtures for the workspace
+  runtime's REST adapter before a real backend exists.
+- `docs/` — the spec set. Treat it as the source of truth; if
+  implementation needs to diverge from a spec, update the spec in the
+  same change, don't let them drift apart silently.
+
+## Scope discipline
+
+Don't build ahead of the current milestone in
+`docs/06-mvp-scope-and-roadmap.md`. If a spec describes a later-phase
+capability (AI/agent features, 400+ formula functions, full
+collaboration), it's there for context, not a request to implement it
+now.
+
+## License
+
+Apache-2.0. New files that need a license header should use
+`SPDX-License-Identifier: Apache-2.0` once the project is public;
+skip it for now per `docs/07-repo-scaffolding-spec.md`.

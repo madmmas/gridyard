@@ -1,10 +1,13 @@
 //! Cell storage, the sparse sheet model, `Value` types, and the shared
 //! style table for Gridyard. See `docs/01-grid-engine-core-spec.md`.
-//!
-//! Most of this crate is still scaffolding for milestone M0 — `cell_id`
-//! below is implemented as the canonical example other modules and
-//! crates should follow for structure and test coverage (see
-//! `.cursor/rules/010-rust.mdc`).
+
+mod cell;
+mod grid;
+mod value;
+
+pub use cell::{Cell, StyleId, DEFAULT_STYLE_ID};
+pub use grid::SparseGrid;
+pub use value::{ErrorKind, Value};
 
 /// A packed cell identifier: row in the high 32 bits, column in the low
 /// 32 bits. Encoding it as a single `u64` instead of a string like

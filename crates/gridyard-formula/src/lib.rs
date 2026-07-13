@@ -11,9 +11,11 @@ mod eval;
 mod functions;
 mod lexer;
 mod parser;
+mod refs;
 
 pub use ast::{Ast, BinOp, Expr, NodeId, UnaryOp};
 pub use error::ParseError;
-pub use eval::{eval_formula, eval_formula_with, evaluate, evaluate_with};
+pub use eval::{eval_formula, eval_formula_with, evaluate, evaluate_with, evaluate_with_cells};
 pub use functions::EvalEnv;
 pub use parser::parse_formula;
+pub use refs::expand_range;

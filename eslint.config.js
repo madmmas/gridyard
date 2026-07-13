@@ -8,6 +8,8 @@ export default defineConfig(
     ignores: [
       "**/node_modules/**",
       "**/dist/**",
+      "**/pkg/**",
+      "**/wasm-pkg/**",
       "target/**",
     ],
   },

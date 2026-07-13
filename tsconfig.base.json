@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "module": "ESNext",
+    "target": "ES2022",
+    "moduleResolution": "Bundler",
+    "skipLibCheck": true,
+    "noEmit": true
+  }
+}

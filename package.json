@@ -9,6 +9,7 @@
     "apps/*"
   ],
   "devDependencies": {
+    "typescript": "^5.8.0",
     "vitest": "^2.1.0"
   }
 }

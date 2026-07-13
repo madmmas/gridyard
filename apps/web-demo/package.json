@@ -8,12 +8,17 @@
   "scripts": {
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "dev": "echo 'not implemented yet — see docs/06-mvp-scope-and-roadmap.md' && exit 0",
-    "build": "echo 'not implemented yet — see docs/06-mvp-scope-and-roadmap.md' && exit 0"
+    "build:wasm": "wasm-pack build ../../crates/gridyard-wasm --target web --out-dir ../../apps/web-demo/public/pkg --dev",
+    "dev": "npm run build:wasm && vite",
+    "build": "npm run build:wasm && vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
     "@gridyard/grid-renderer": "*",
-    "@gridyard/workspace-runtime": "*",
-    "@gridyard/ui-kit": "*"
+    "@gridyard/ui-kit": "*",
+    "@gridyard/workspace-runtime": "*"
+  },
+  "devDependencies": {
+    "vite": "^6.3.5"
   }
 }

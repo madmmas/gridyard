@@ -1,0 +1,9 @@
+[package]
+name = "gridyard-grid"
+description = "Selection, clipboard, sort/filter, and undo/redo."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]

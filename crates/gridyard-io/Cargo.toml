@@ -1,0 +1,9 @@
+[package]
+name = "gridyard-io"
+description = "Import/export: CSV now, xlsx later (calamine / rust_xlsxwriter)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]

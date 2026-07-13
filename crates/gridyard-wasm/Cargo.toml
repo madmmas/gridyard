@@ -1,0 +1,12 @@
+[package]
+name = "gridyard-wasm"
+description = "wasm-bindgen glue crate — the only crate that depends on wasm-bindgen/web-sys. Everything above it is plain, natively testable Rust."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]

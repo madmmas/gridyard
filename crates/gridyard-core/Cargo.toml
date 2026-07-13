@@ -1,0 +1,9 @@
+[package]
+name = "gridyard-core"
+description = "Cell storage, the sparse sheet model, Value types, and the shared style table."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]

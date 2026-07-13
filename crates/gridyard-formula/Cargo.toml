@@ -1,0 +1,9 @@
+[package]
+name = "gridyard-formula"
+description = "Formula lexer, parser, AST, evaluator, and function registry."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]

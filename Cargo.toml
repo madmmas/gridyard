@@ -1,0 +1,16 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/gridyard-core",
+    "crates/gridyard-formula",
+    "crates/gridyard-graph",
+    "crates/gridyard-grid",
+    "crates/gridyard-io",
+    "crates/gridyard-wasm",
+]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/gridyard/gridyard"

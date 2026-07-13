@@ -6,6 +6,7 @@
   "description": "Serves the mock JSON fixtures behind a REST-shaped API for the workspace runtime's REST adapter (docs/04) before a real backend exists.",
   "type": "module",
   "scripts": {
+    "lint": "eslint . --no-error-on-unmatched-pattern",
     "start": "json-server --watch db.json --port 4000"
   },
   "dependencies": {

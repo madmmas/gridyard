@@ -7,6 +7,7 @@
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "build": "echo 'not implemented yet — see docs/06-mvp-scope-and-roadmap.md' && exit 0"

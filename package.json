@@ -4,12 +4,17 @@
   "version": "0.0.0",
   "license": "Apache-2.0",
   "description": "Business workspace engine — monorepo root.",
+  "type": "module",
   "workspaces": [
     "packages/*",
     "apps/*"
   ],
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.7.0",
+    "eslint-plugin-import-x": "^4.17.1",
     "typescript": "^5.8.0",
+    "typescript-eslint": "^8.63.0",
     "vitest": "^2.1.0"
   }
 }

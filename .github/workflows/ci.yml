@@ -23,7 +23,7 @@ jobs:
         run: cargo test --workspace
 
   js:
-    name: JS/TS (lint, test, build)
+    name: JS/TS (typecheck, lint, test, build)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,6 +32,8 @@ jobs:
           node-version: 22
       - name: Install
         run: npm install
+      - name: Typecheck
+        run: npm run typecheck --workspaces --if-present
       - name: Lint
         run: npm run lint --workspaces --if-present
       - name: Test

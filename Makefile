@@ -5,7 +5,7 @@
 
 .PHONY: help install \
 	fmt fmt-check clippy test-rust lint-rust \
-	lint-js test-js build-js \
+	lint-js typecheck-js test-js build-js \
 	lint test build check ci \
 	mock-server up down clean
 
@@ -34,6 +34,9 @@ lint-rust: fmt-check clippy ## Rust fmt-check + clippy
 
 # --- JS/TS ------------------------------------------------------------------
 
+typecheck-js: ## Typecheck JS/TS workspaces (CI)
+	npm run typecheck --workspaces --if-present
+
 lint-js: ## Lint JS/TS workspaces (CI)
 	npm run lint --workspaces --if-present
 
@@ -45,7 +48,7 @@ build-js: ## Build JS/TS workspaces (CI)
 
 # --- Combined ---------------------------------------------------------------
 
-lint: lint-rust lint-js ## Lint Rust and JS/TS
+lint: lint-rust typecheck-js lint-js ## Lint Rust and JS/TS (includes typecheck)
 
 test: test-rust test-js ## Test Rust and JS/TS
 

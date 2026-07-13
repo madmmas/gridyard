@@ -1,18 +1,69 @@
 //! The WASM boundary for Gridyard — the only crate that touches
-//! `wasm-bindgen`/`web-sys`. See `docs/01-grid-engine-core-spec.md`
-//! (section 9, the WASM ↔ JS boundary) in the earlier draft spec, and
-//! `docs/03-workspace-schema-spec.md` for what the runtime calls into.
+//! `wasm-bindgen` / `js-sys`. See `docs/01-grid-engine-core-spec.md`.
 //!
-//! No implementation yet — this crate is scaffolding for milestone M0/M1.
+//! JS usage:
+//! ```ignore
+//! import init, { create_grid } from "./gridyard_wasm.js";
+//! await init();
+//! const g = create_grid();
+//! g.set_cell(0, 0, "10");
+//! g.set_cell(0, 1, "=A1*2");
+//! g.get_cell(0, 1); // { type: "number", value: 20 }
+//! ```
+
+mod handle;
+mod js_value;
+
+use wasm_bindgen::prelude::*;
+
+pub use handle::GridHandle;
+
+use crate::js_value::value_to_js;
+
+/// JS-facing grid handle wrapping the native engine.
+#[wasm_bindgen]
+pub struct Grid {
+    inner: GridHandle,
+}
+
+#[wasm_bindgen]
+impl Grid {
+    /// Sets the cell at zero-based `(row, col)` from a literal or `=formula`.
+    ///
+    /// Recalculates dependents before returning.
+    #[wasm_bindgen(js_name = set_cell)]
+    pub fn set_cell(&mut self, row: u32, col: u32, input: &str) -> Result<(), JsValue> {
+        self.inner
+            .set_cell(row, col, input)
+            .map_err(|e| JsValue::from_str(&e))
+    }
+
+    /// Returns the computed cell value as a plain object:
+    /// `{ type: "number"|"text"|"bool"|"empty"|"error"|"array", ... }`.
+    #[wasm_bindgen(js_name = get_cell)]
+    pub fn get_cell(&self, row: u32, col: u32) -> Result<JsValue, JsValue> {
+        value_to_js(&self.inner.get_cell(row, col))
+    }
+}
+
+/// Creates an empty grid for use from JavaScript.
+#[wasm_bindgen]
+pub fn create_grid() -> Grid {
+    Grid {
+        inner: GridHandle::new(),
+    }
+}
 
 #[cfg(test)]
 mod tests {
-    // Placeholder — replace once this crate has real code. See
-    // crates/gridyard-core/src/lib.rs (`cell_id`) for the pattern this
-    // repo follows: colocated `#[cfg(test)] mod tests`, one test per
-    // behavior, edge cases included. See .cursor/rules/010-rust.mdc.
+    use super::*;
+    use gridyard_core::Value;
+
     #[test]
-    fn placeholder() {
-        // Replace with a real test once this crate has real code.
+    fn create_grid_wires_set_and_get() {
+        let mut grid = create_grid();
+        grid.inner.set_cell(0, 0, "3").unwrap();
+        grid.inner.set_cell(1, 0, "=A1+7").unwrap();
+        assert_eq!(grid.inner.get_cell(1, 0), Value::Number(10.0));
     }
 }

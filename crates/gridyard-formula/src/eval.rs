@@ -1,64 +1,89 @@
 //! Formula evaluation against an arena AST.
-//!
-//! Cell references and ranges require a live sheet (later issues). This
-//! slice evaluates literals, arithmetic, and the v0.1 function list.
 
 use gridyard_core::{ErrorKind, Value};
 
 use crate::ast::{Ast, BinOp, Expr, NodeId, UnaryOp};
 use crate::functions::{self, EvalEnv};
+use crate::refs::expand_range;
 
 /// Evaluates a parsed formula using default env (real `NOW`/`RAND`).
 ///
-/// Bare cell refs and ranges yield [`ErrorKind::Ref`] until a sheet
-/// context exists.
+/// Bare cell refs and ranges yield [`ErrorKind::Ref`] without a sheet
+/// resolver.
 pub fn evaluate(ast: &Ast) -> Value {
     evaluate_with(ast, &EvalEnv::default())
 }
 
 /// Evaluates a parsed formula with an explicit [`EvalEnv`] (injectable
-/// `NOW`/`RAND` for tests).
+/// `NOW`/`RAND` for tests). Cell refs resolve to [`ErrorKind::Ref`].
 pub fn evaluate_with(ast: &Ast, env: &EvalEnv) -> Value {
-    eval_node(ast, ast.root(), env)
+    evaluate_with_cells(ast, env, |_| Value::Error(ErrorKind::Ref))
 }
 
-fn eval_node(ast: &Ast, id: NodeId, env: &EvalEnv) -> Value {
+/// Evaluates a formula, resolving cell refs/ranges through `get_cell`.
+pub fn evaluate_with_cells<F>(ast: &Ast, env: &EvalEnv, get_cell: F) -> Value
+where
+    F: Fn(gridyard_core::CellId) -> Value,
+{
+    eval_node(ast, ast.root(), env, &get_cell)
+}
+
+fn eval_node<F>(ast: &Ast, id: NodeId, env: &EvalEnv, get_cell: &F) -> Value
+where
+    F: Fn(gridyard_core::CellId) -> Value,
+{
     match ast.node(id) {
         Expr::Number(n) => Value::Number(*n),
         Expr::Text(s) => Value::Text(s.clone()),
         Expr::Bool(b) => Value::Bool(*b),
-        Expr::CellRef(_) | Expr::Range { .. } => Value::Error(ErrorKind::Ref),
-        Expr::Unary { op, expr } => eval_unary(ast, *op, *expr, env),
-        Expr::Binary { op, left, right } => eval_binary(ast, *op, *left, *right, env),
+        Expr::CellRef(cell) => get_cell(*cell),
+        Expr::Range { start, end } => {
+            let values: Vec<Value> = expand_range(*start, *end)
+                .into_iter()
+                .map(get_cell)
+                .collect();
+            Value::Array(values)
+        }
+        Expr::Unary { op, expr } => eval_unary(ast, *op, *expr, env, get_cell),
+        Expr::Binary { op, left, right } => eval_binary(ast, *op, *left, *right, env, get_cell),
         Expr::Call { name, args } => {
             if name.eq_ignore_ascii_case("IF") {
-                return eval_if(ast, args, env);
+                return eval_if(ast, args, env, get_cell);
             }
-            let values: Vec<Value> = args.iter().map(|a| eval_node(ast, *a, env)).collect();
+            let values: Vec<Value> = args
+                .iter()
+                .map(|a| eval_node(ast, *a, env, get_cell))
+                .collect();
             functions::dispatch(name, &values, env)
         }
     }
 }
 
-fn eval_if(ast: &Ast, args: &[NodeId], env: &EvalEnv) -> Value {
+fn eval_if<F>(ast: &Ast, args: &[NodeId], env: &EvalEnv, get_cell: &F) -> Value
+where
+    F: Fn(gridyard_core::CellId) -> Value,
+{
     if args.len() < 2 || args.len() > 3 {
         return Value::Error(ErrorKind::Value);
     }
-    match eval_node(ast, args[0], env) {
+    match eval_node(ast, args[0], env, get_cell) {
         Value::Error(e) => Value::Error(e),
         cond => match cond.coerce_bool() {
-            Some(true) => eval_node(ast, args[1], env),
+            Some(true) => eval_node(ast, args[1], env, get_cell),
             Some(false) => args
                 .get(2)
-                .map(|id| eval_node(ast, *id, env))
+                .map(|id| eval_node(ast, *id, env, get_cell))
                 .unwrap_or(Value::Bool(false)),
             None => Value::Error(ErrorKind::Value),
         },
     }
 }
 
-fn eval_unary(ast: &Ast, op: UnaryOp, expr: NodeId, env: &EvalEnv) -> Value {
-    let v = eval_node(ast, expr, env);
+fn eval_unary<F>(ast: &Ast, op: UnaryOp, expr: NodeId, env: &EvalEnv, get_cell: &F) -> Value
+where
+    F: Fn(gridyard_core::CellId) -> Value,
+{
+    let v = eval_node(ast, expr, env, get_cell);
     if let Value::Error(e) = v {
         return Value::Error(e);
     }
@@ -71,12 +96,22 @@ fn eval_unary(ast: &Ast, op: UnaryOp, expr: NodeId, env: &EvalEnv) -> Value {
     }
 }
 
-fn eval_binary(ast: &Ast, op: BinOp, left: NodeId, right: NodeId, env: &EvalEnv) -> Value {
-    let l = eval_node(ast, left, env);
+fn eval_binary<F>(
+    ast: &Ast,
+    op: BinOp,
+    left: NodeId,
+    right: NodeId,
+    env: &EvalEnv,
+    get_cell: &F,
+) -> Value
+where
+    F: Fn(gridyard_core::CellId) -> Value,
+{
+    let l = eval_node(ast, left, env, get_cell);
     if let Value::Error(e) = l {
         return Value::Error(e);
     }
-    let r = eval_node(ast, right, env);
+    let r = eval_node(ast, right, env, get_cell);
     if let Value::Error(e) = r {
         return Value::Error(e);
     }
@@ -110,6 +145,7 @@ pub fn eval_formula_with(source: &str, env: &EvalEnv) -> Result<Value, crate::Pa
 #[cfg(test)]
 mod tests {
     use super::*;
+    use gridyard_core::cell_id;
 
     #[test]
     fn evaluates_arithmetic_literals() {
@@ -128,6 +164,22 @@ mod tests {
     #[test]
     fn cell_refs_without_sheet_are_ref_errors() {
         assert_eq!(eval_formula("A1").unwrap(), Value::Error(ErrorKind::Ref));
-        assert_eq!(eval_formula("A1:A8").unwrap(), Value::Error(ErrorKind::Ref));
+        assert_eq!(
+            eval_formula("A1:A8").unwrap(),
+            Value::Array(vec![Value::Error(ErrorKind::Ref); 8])
+        );
+    }
+
+    #[test]
+    fn resolves_cells_through_callback() {
+        let ast = crate::parse_formula("A1*2").unwrap();
+        let value = evaluate_with_cells(&ast, &EvalEnv::default(), |id| {
+            if id == cell_id(0, 0) {
+                Value::Number(21.0)
+            } else {
+                Value::Error(ErrorKind::Ref)
+            }
+        });
+        assert_eq!(value, Value::Number(42.0));
     }
 }

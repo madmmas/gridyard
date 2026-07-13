@@ -1,0 +1,14 @@
+{
+  "name": "mock-server",
+  "private": true,
+  "version": "0.0.0",
+  "license": "Apache-2.0",
+  "description": "Serves the mock JSON fixtures behind a REST-shaped API for the workspace runtime's REST adapter (docs/04) before a real backend exists.",
+  "type": "module",
+  "scripts": {
+    "start": "json-server --watch db.json --port 4000"
+  },
+  "dependencies": {
+    "json-server": "^1.0.0-beta.3"
+  }
+}

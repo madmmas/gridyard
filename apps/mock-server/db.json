@@ -1,0 +1,23 @@
+{
+  "loans": [
+    { "id": 1, "borrower": "Alam Textiles", "overdue": 8400, "status": "Overdue", "daysLate": 14, "notes": "Called, no answer", "docLink": "call-log.pdf" },
+    { "id": 2, "borrower": "Nirvana Foods", "overdue": 2100, "status": "Active", "daysLate": 0, "notes": null, "docLink": null },
+    { "id": 3, "borrower": "Karim & Sons", "overdue": 6300, "status": "Overdue", "daysLate": 22, "notes": "Payment plan sent", "docLink": "plan.pdf" },
+    { "id": 4, "borrower": "Deltapoint Ltd", "overdue": 0, "status": "Closed", "daysLate": 0, "notes": null, "docLink": null },
+    { "id": 5, "borrower": "Riverbend Farms", "overdue": 5200, "status": "Active", "daysLate": 3, "notes": "Site visit scheduled", "docLink": null },
+    { "id": 6, "borrower": "Orchid Apparel", "overdue": 11400, "status": "Overdue", "daysLate": 9, "notes": "Docs pending", "docLink": null },
+    { "id": 7, "borrower": "Metro Traders", "overdue": 14800, "status": "Overdue", "daysLate": 31, "notes": "Escalated to legal", "docLink": "legal.pdf" }
+  ],
+  "employees": [
+    { "id": 1, "name": "Farida Rahman", "department": "Finance", "status": "Active", "salary": 68000, "tax": 9200 },
+    { "id": 2, "name": "Tanvir Ahmed", "department": "Engineering", "status": "Active", "salary": 92000, "tax": 14100 },
+    { "id": 3, "name": "Nusrat Jahan", "department": "HR", "status": "On leave", "salary": 54000, "tax": 6800 },
+    { "id": 4, "name": "Shafiq Islam", "department": "Operations", "status": "Active", "salary": 61000, "tax": 7900 }
+  ],
+  "invoices": [
+    { "id": 1, "customer": "Alam Textiles", "totalAmount": 22000, "tax": 1980, "outstanding": 22000 },
+    { "id": 2, "customer": "Orchid Apparel", "totalAmount": 15400, "tax": 1386, "outstanding": 0 },
+    { "id": 3, "customer": "Metro Traders", "totalAmount": 31200, "tax": 2808, "outstanding": 31200 },
+    { "id": 4, "customer": "Riverbend Farms", "totalAmount": 9800, "tax": 882, "outstanding": 4900 }
+  ]
+}

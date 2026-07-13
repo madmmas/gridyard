@@ -9,6 +9,31 @@ tried and abandoned — that's the whole point of this file existing.
 
 ---
 
+## 2026-07-13
+
+- First issue batch (`docs/ISSUES_BATCH_01.md` #1–#6) landed on `main`:
+  - **#1 / PR #9 — `gridyard-core`:** `Value`, `ErrorKind`, `Cell`,
+    `SparseGrid`; empty cells never stored; coercion helpers for formula
+    eval.
+  - **#2 / PR #10 — `gridyard-formula`:** lexer + recursive-descent parser;
+    slotmap AST; A1 refs vs ranges; position-aware parse errors.
+  - **#3 / PR #11 — `gridyard-formula`:** call / text / bool syntax; v0.1
+    function set; `Value::Array`; evaluate helpers (incl. sheet-backed).
+  - **#4 / PR #12 — `gridyard-graph`:** `DepGraph` + `SheetEngine`; dirty
+    marking, topo recalc, cycles → `ErrorKind::Circular`.
+  - **#5 / PR #13 — `gridyard-wasm`:** minimal `create_grid` / `set_cell` /
+    `get_cell` WASM surface; native handle for unit tests.
+  - **#6 / PR #14 — `@gridyard/grid-renderer` + `web-demo`:** static canvas
+    main-region paint from live WASM; A1 letters, layout math, Vitest for
+    pure logic. Demo: `make demo`.
+- Web-demo CI lessons: keep `vite build` free of wasm-pack; load WASM from
+  `src/wasm-pkg` (Vite forbids importing from `public/`); ambient
+  `declare module "*gridyard_wasm.js"` so typecheck works when the
+  gitignored pkg is absent.
+- Tooling aligned with CI (PR #15): pre-commit + `make check` now include
+  typecheck, build, `cargo deny`, and `npm audit`; added `make wasm` /
+  `make demo`; `make clean` clears wasm-pack output.
+
 ## 2026-07-12
 
 - Repo scaffolded: Cargo workspace (6 crates) + npm workspaces (3 packages +

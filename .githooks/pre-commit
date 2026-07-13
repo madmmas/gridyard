@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pre-commit: same floor as CI (fmt/clippy/test + lint/test).
+# Pre-commit: same floor as CI (see .github/workflows/ci.yml / `make check`).
 # Enable once per clone:  git config core.hooksPath .githooks
 # Bypass in an emergency: SKIP_HOOKS=1 git commit ...
 
@@ -32,12 +32,27 @@ cargo clippy --workspace --all-targets -- -D warnings || fail "clippy"
 step "cargo test --workspace"
 cargo test --workspace || fail "cargo test"
 
+step "cargo deny check"
+if ! command -v cargo-deny >/dev/null 2>&1; then
+  fail "cargo-deny not installed (cargo install cargo-deny --locked)"
+fi
+cargo deny check || fail "cargo deny"
+
 if [ -f package.json ]; then
+  step "npm run typecheck --workspaces --if-present"
+  npm run typecheck --workspaces --if-present || fail "npm typecheck"
+
   step "npm run lint --workspaces --if-present"
   npm run lint --workspaces --if-present || fail "npm lint"
 
   step "npm test --workspaces --if-present"
   npm test --workspaces --if-present || fail "npm test"
+
+  step "npm run build --workspaces --if-present"
+  npm run build --workspaces --if-present || fail "npm build"
+
+  step "npm audit --audit-level=high"
+  npm audit --audit-level=high || fail "npm audit"
 fi
 
 green "pre-commit: all checks passed"

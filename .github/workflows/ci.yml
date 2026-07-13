@@ -8,7 +8,7 @@ on:
 
 jobs:
   rust:
-    name: Rust (fmt, clippy, test)
+    name: Rust (fmt, clippy, test, deny)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,9 +21,13 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Test
         run: cargo test --workspace
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked
+      - name: Dependency audit
+        run: cargo deny check
 
   js:
-    name: JS/TS (typecheck, lint, test, build)
+    name: JS/TS (typecheck, lint, test, build, audit)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,3 +44,5 @@ jobs:
         run: npm test --workspaces --if-present
       - name: Build
         run: npm run build --workspaces --if-present
+      - name: Audit
+        run: npm audit --audit-level=high

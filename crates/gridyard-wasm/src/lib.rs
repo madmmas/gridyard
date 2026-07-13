@@ -13,6 +13,9 @@ mod tests {
     // behavior, edge cases included. See .cursor/rules/010-rust.mdc.
     #[test]
     fn placeholder() {
-        assert!(true, "replace with a real test once this crate has real code");
+        assert!(
+            true,
+            "replace with a real test once this crate has real code"
+        );
     }
 }

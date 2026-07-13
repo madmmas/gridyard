@@ -31,13 +31,17 @@ Point Git at the repo-managed hooks (once per clone):
 git config core.hooksPath .githooks
 ```
 
-`pre-commit` runs the same floor as CI: `cargo fmt`, `clippy`,
-`cargo test`, plus `npm` lint/test across workspaces. To skip once
-(emergency only): `SKIP_HOOKS=1 git commit ...`.
+`pre-commit` runs the same floor as CI / `make check`: `cargo fmt`,
+`clippy`, `cargo test`, `cargo deny`, plus `npm` typecheck / lint /
+test / build / `npm audit --audit-level=high`. Requires
+[`cargo-deny`](https://github.com/EmbarkStudios/cargo-deny)
+(`cargo install cargo-deny --locked`). To skip once (emergency only):
+`SKIP_HOOKS=1 git commit ...`.
 
 ## Before opening a PR
 
-Run the Rust checks (`cargo fmt --check`, `cargo clippy`, `cargo test`)
-and the JS checks (`npm run lint`, `npm run build`) across the whole
-workspace — see `.github/workflows/ci.yml` for the exact commands CI
-runs. With hooks enabled, most of that already runs on every commit.
+Run `make check` (or rely on the pre-commit hook). See
+`.github/workflows/ci.yml` for the exact commands CI runs.
+
+Useful local targets: `make wasm` (wasm-pack into `web-demo`),
+`make demo` (wasm + Vite), `make help`.

@@ -1,0 +1,2 @@
+# Minimal clippy config — placeholder for crate-specific thresholds later.
+avoid-breaking-exported-api = true

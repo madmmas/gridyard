@@ -8,7 +8,7 @@
   "scripts": {
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "build:wasm": "wasm-pack build ../../crates/gridyard-wasm --target web --out-dir ../../apps/web-demo/public/pkg --dev",
+    "build:wasm": "wasm-pack build ../../crates/gridyard-wasm --target web --out-dir ../../apps/web-demo/src/wasm-pkg --dev",
     "dev": "npm run build:wasm && vite",
     "build": "vite build",
     "preview": "vite preview"
@@ -19,6 +19,7 @@
     "@gridyard/workspace-runtime": "*"
   },
   "devDependencies": {
+    "@types/node": "^26.1.1",
     "vite": "^6.3.5"
   }
 }

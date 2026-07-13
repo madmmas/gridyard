@@ -3,22 +3,7 @@ import {
   paintStaticGrid,
 } from "@gridyard/grid-renderer";
 
-type WasmGrid = {
-  set_cell(row: number, col: number, input: string): void;
-  get_cell(row: number, col: number): unknown;
-};
-
-type WasmModule = {
-  default: (moduleOrPath?: unknown) => Promise<unknown>;
-  create_grid: () => WasmGrid;
-};
-
-async function loadWasm(): Promise<WasmModule> {
-  // Built into public/pkg by `npm run build:wasm` (gitignored).
-  const specifier = "/pkg/gridyard_wasm.js";
-  const mod: unknown = await import(/* @vite-ignore */ specifier);
-  return mod as WasmModule;
-}
+import init, { create_grid } from "./wasm-pkg/gridyard_wasm.js";
 
 async function main(): Promise<void> {
   const status = document.getElementById("status");
@@ -31,9 +16,8 @@ async function main(): Promise<void> {
     throw new Error("2d context unavailable");
   }
 
-  const wasm = await loadWasm();
-  await wasm.default();
-  const grid = wasm.create_grid();
+  await init();
+  const grid = create_grid();
 
   // Loan-review-ish sheet; Status uses IF(days) so non-zero late days → Overdue.
   // (Comparison operators are not in the v0.1 parser yet.)

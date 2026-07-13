@@ -1,0 +1,30 @@
+# Rust
+target/
+**/target/
+Cargo.lock
+
+# WASM build output
+pkg/
+**/pkg/
+*.wasm
+
+# Node
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+build/
+**/build/
+
+# Editor / OS
+.DS_Store
+.idea/
+*.swp
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# scripts
+scripts/*.sh

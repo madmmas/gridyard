@@ -1,0 +1,13 @@
+{
+  "name": "@gridyard/grid-renderer",
+  "private": true,
+  "version": "0.0.0",
+  "license": "Apache-2.0",
+  "description": "Virtualized canvas grid renderer, reads cell data directly from the WASM core's linear memory.",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "build": "echo 'not implemented yet — see docs/06-mvp-scope-and-roadmap.md' && exit 0"
+  }
+}

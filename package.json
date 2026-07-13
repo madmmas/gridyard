@@ -1,0 +1,14 @@
+{
+  "name": "gridyard",
+  "private": true,
+  "version": "0.0.0",
+  "license": "Apache-2.0",
+  "description": "Business workspace engine — monorepo root.",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "devDependencies": {
+    "vitest": "^2.1.0"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "web-demo",
+  "private": true,
+  "version": "0.0.0",
+  "license": "Apache-2.0",
+  "description": "Demo app wiring the Gridyard packages together.",
+  "type": "module",
+  "scripts": {
+    "dev": "echo 'not implemented yet — see docs/06-mvp-scope-and-roadmap.md' && exit 0",
+    "build": "echo 'not implemented yet — see docs/06-mvp-scope-and-roadmap.md' && exit 0"
+  },
+  "dependencies": {
+    "@gridyard/grid-renderer": "*",
+    "@gridyard/workspace-runtime": "*",
+    "@gridyard/ui-kit": "*"
+  }
+}

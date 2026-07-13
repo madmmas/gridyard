@@ -1,0 +1,13 @@
+{
+  "name": "@gridyard/workspace-runtime",
+  "private": true,
+  "version": "0.0.0",
+  "license": "Apache-2.0",
+  "description": "Layout engine, permission engine, workspace schema parser, and data binding adapters.",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "build": "echo 'not implemented yet — see docs/06-mvp-scope-and-roadmap.md' && exit 0"
+  }
+}

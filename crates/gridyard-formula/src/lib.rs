@@ -1,16 +1,16 @@
 //! Formula lexer, parser, AST, evaluator, and function registry for
 //! Gridyard. See `docs/01-grid-engine-core-spec.md`.
 //!
-//! No implementation yet — this crate is scaffolding for milestone M0/M2.
+//! This crate currently covers the first formula slice: lexing and
+//! parsing arithmetic, cell references, and ranges into an arena-backed
+//! AST. Evaluation and function calls arrive in later issues.
 
-#[cfg(test)]
-mod tests {
-    // Placeholder — replace once this crate has real code. See
-    // crates/gridyard-core/src/lib.rs (`cell_id`) for the pattern this
-    // repo follows: colocated `#[cfg(test)] mod tests`, one test per
-    // behavior, edge cases included. See .cursor/rules/010-rust.mdc.
-    #[test]
-    fn placeholder() {
-        // Replace with a real test once this crate has real code.
-    }
-}
+mod a1;
+mod ast;
+mod error;
+mod lexer;
+mod parser;
+
+pub use ast::{Ast, BinOp, Expr, NodeId, UnaryOp};
+pub use error::ParseError;
+pub use parser::parse_formula;

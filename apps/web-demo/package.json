@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "build:wasm": "wasm-pack build ../../crates/gridyard-wasm --target web --out-dir ../../apps/web-demo/public/pkg --dev",
     "dev": "npm run build:wasm && vite",
-    "build": "npm run build:wasm && vite build",
+    "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {

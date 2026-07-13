@@ -7,7 +7,7 @@
 	fmt fmt-check clippy test-rust lint-rust \
 	lint-js test-js build-js \
 	lint test build check ci \
-	mock-server clean
+	mock-server up down clean
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage: make <target>\n\n"} \
@@ -54,8 +54,14 @@ build: build-js ## Build JS/TS workspaces
 check: lint test build ## Full local check (matches CI)
 ci: check ## Alias for check
 
-mock-server: ## Start the mock REST server on :4000
+mock-server: ## Start the mock REST server on :4000 (local npm)
 	npm start --workspace=mock-server
+
+up: ## Start docker compose services (mock-server on :4000)
+	docker compose up --build
+
+down: ## Stop docker compose services
+	docker compose down
 
 clean: ## Remove Rust and Node build artifacts
 	cargo clean

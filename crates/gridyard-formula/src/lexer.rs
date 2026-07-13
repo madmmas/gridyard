@@ -18,7 +18,9 @@ pub struct Token {
 pub enum TokenKind {
     /// Floating-point or integer literal.
     Number(f64),
-    /// Identifier (cell refs today; function names later).
+    /// Double-quoted string literal (quotes stripped, escapes applied).
+    String(String),
+    /// Identifier (cell refs, bools, function names).
     Ident(String),
     /// `+`
     Plus,
@@ -32,6 +34,8 @@ pub enum TokenKind {
     LParen,
     /// `)`
     RParen,
+    /// `,` (argument separator)
+    Comma,
     /// `:` (range separator)
     Colon,
     /// End of input.
@@ -76,9 +80,18 @@ pub fn lex(source: &str) -> Result<Vec<Token>, ParseError> {
                 i += 1;
                 TokenKind::RParen
             }
+            b',' => {
+                i += 1;
+                TokenKind::Comma
+            }
             b':' => {
                 i += 1;
                 TokenKind::Colon
+            }
+            b'"' => {
+                let (s, next) = lex_string(source, i)?;
+                i = next;
+                TokenKind::String(s)
             }
             b'0'..=b'9' | b'.' => {
                 let (n, next) = lex_number(source, i)?;
@@ -164,6 +177,42 @@ fn lex_ident(source: &str, start: usize) -> (String, usize) {
     (source[start..i].to_string(), i)
 }
 
+fn lex_string(source: &str, start: usize) -> Result<(String, usize), ParseError> {
+    let bytes = source.as_bytes();
+    debug_assert_eq!(bytes[start], b'"');
+    let mut i = start + 1;
+    let mut out = String::new();
+    while i < bytes.len() {
+        match bytes[i] {
+            b'"' => return Ok((out, i + 1)),
+            b'\\' => {
+                i += 1;
+                if i >= bytes.len() {
+                    return Err(ParseError::new(start, "unterminated string literal"));
+                }
+                match bytes[i] {
+                    b'"' => out.push('"'),
+                    b'\\' => out.push('\\'),
+                    b'n' => out.push('\n'),
+                    b't' => out.push('\t'),
+                    other => {
+                        return Err(ParseError::new(
+                            i,
+                            format!("invalid string escape `\\{}`", other.escape_ascii()),
+                        ));
+                    }
+                }
+                i += 1;
+            }
+            b => {
+                out.push(b as char);
+                i += 1;
+            }
+        }
+    }
+    Err(ParseError::new(start, "unterminated string literal"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -182,6 +231,17 @@ mod tests {
         assert!(matches!(kinds[7], TokenKind::Ident(s) if s == "B4"));
         assert!(matches!(kinds[8], TokenKind::RParen));
         assert!(matches!(kinds[9], TokenKind::Eof));
+    }
+
+    #[test]
+    fn lexes_strings_commas_and_calls() {
+        let tokens = lex(r#"SUM(1, "a")"#).expect("lex");
+        assert!(matches!(tokens[0].kind, TokenKind::Ident(ref s) if s == "SUM"));
+        assert!(matches!(tokens[1].kind, TokenKind::LParen));
+        assert!(matches!(tokens[2].kind, TokenKind::Number(n) if (n - 1.0).abs() < f64::EPSILON));
+        assert!(matches!(tokens[3].kind, TokenKind::Comma));
+        assert!(matches!(tokens[4].kind, TokenKind::String(ref s) if s == "a"));
+        assert!(matches!(tokens[5].kind, TokenKind::RParen));
     }
 
     #[test]

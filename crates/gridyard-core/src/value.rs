@@ -39,6 +39,8 @@ pub enum Value {
     Text(String),
     /// Boolean.
     Bool(bool),
+    /// One-dimensional list (UNIQUE / FILTER / SORT results, etc.).
+    Array(Vec<Value>),
     /// No value — used for missing/cleared cells; not stored in the sparse map.
     Empty,
     /// Evaluation or type error.
@@ -56,7 +58,7 @@ impl Value {
     /// - [`Value::Bool`]: `true` → `1.0`, `false` → `0.0`
     /// - [`Value::Empty`] → `0.0`
     /// - [`Value::Text`]: parse as `f64` when the whole string is numeric
-    /// - [`Value::Error`]: no coercion
+    /// - [`Value::Error`] / [`Value::Array`]: no coercion
     pub fn coerce_number(&self) -> Option<f64> {
         match self {
             Value::Number(n) => Some(*n),
@@ -70,7 +72,7 @@ impl Value {
                     trimmed.parse().ok()
                 }
             }
-            Value::Error(_) => None,
+            Value::Error(_) | Value::Array(_) => None,
         }
     }
 
@@ -79,15 +81,37 @@ impl Value {
     /// - [`Value::Number`]: non-zero → `true`
     /// - [`Value::Empty`] → `false`
     /// - [`Value::Text`]: non-empty → `true`
-    /// - [`Value::Error`]: no coercion
+    /// - [`Value::Error`] / [`Value::Array`]: no coercion
     pub fn coerce_bool(&self) -> Option<bool> {
         match self {
             Value::Bool(b) => Some(*b),
             Value::Number(n) => Some(*n != 0.0),
             Value::Empty => Some(false),
             Value::Text(s) => Some(!s.is_empty()),
-            Value::Error(_) => None,
+            Value::Error(_) | Value::Array(_) => None,
         }
+    }
+
+    /// Coerce to display text for concatenation and text functions.
+    ///
+    /// Errors and arrays cannot be coerced.
+    pub fn coerce_text(&self) -> Option<String> {
+        match self {
+            Value::Number(n) => Some(format_number_text(*n)),
+            Value::Text(s) => Some(s.clone()),
+            Value::Bool(true) => Some("TRUE".to_string()),
+            Value::Bool(false) => Some("FALSE".to_string()),
+            Value::Empty => Some(String::new()),
+            Value::Error(_) | Value::Array(_) => None,
+        }
+    }
+}
+
+fn format_number_text(n: f64) -> String {
+    if n.fract() == 0.0 && n.abs() < 1e15 {
+        format!("{}", n as i64)
+    } else {
+        format!("{n}")
     }
 }
 
@@ -144,10 +168,32 @@ mod tests {
             (Value::Text("1abc".into()), None),
             (Value::Error(ErrorKind::Value), None),
             (Value::Error(ErrorKind::Div0), None),
+            (Value::Array(vec![Value::Number(1.0)]), None),
         ];
 
         for (value, expected) in cases {
             assert_eq!(value.coerce_number(), *expected, "coerce_number({value:?})");
+        }
+    }
+
+    #[test]
+    fn coerce_text_cases() {
+        let cases: &[(Value, Option<&str>)] = &[
+            (Value::Number(3.0), Some("3")),
+            (Value::Text("hi".into()), Some("hi")),
+            (Value::Bool(true), Some("TRUE")),
+            (Value::Bool(false), Some("FALSE")),
+            (Value::Empty, Some("")),
+            (Value::Error(ErrorKind::Name), None),
+            (Value::Array(vec![]), None),
+        ];
+
+        for (value, expected) in cases {
+            assert_eq!(
+                value.coerce_text().as_deref(),
+                *expected,
+                "coerce_text({value:?})"
+            );
         }
     }
 
@@ -164,6 +210,7 @@ mod tests {
             (Value::Text("x".into()), Some(true)),
             (Value::Error(ErrorKind::Na), None),
             (Value::Error(ErrorKind::Circular), None),
+            (Value::Array(vec![Value::Bool(true)]), None),
         ];
 
         for (value, expected) in cases {
@@ -178,5 +225,6 @@ mod tests {
         assert!(!Value::Text(String::new()).is_empty());
         assert!(!Value::Bool(false).is_empty());
         assert!(!Value::Error(ErrorKind::Null).is_empty());
+        assert!(!Value::Array(vec![]).is_empty());
     }
 }

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Gridyard workspace UI mockup — Loan review</title>
+<style>
+  :root {
+    --text-primary:#101014; --text-secondary:#52525b; --text-muted:#8b8b93;
+    --border:#e4e4e7; --surface-0:#ffffff; --surface-1:#f4f4f5;
+    --bg-accent:#e6f1fb; --text-accent:#0c447c; --fill-accent:#378add; --on-accent:#ffffff;
+    --bg-danger:#fcebeb; --text-danger:#791f1f;
+    --bg-success:#eaf3de; --text-success:#27500a;
+    --radius:8px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: var(--text-primary); background: var(--surface-0);
+    margin: 0; padding: 32px; font-size: 14px;
+  }
+  .wrap { max-width: 480px; margin: 0 auto; }
+  .toolbar { display:flex; align-items:center; justify-content:space-between; padding:10px 16px;
+             background:var(--surface-1); border:0.5px solid var(--border); border-radius:var(--radius); margin-bottom:16px; }
+  .brand { display:flex; align-items:center; gap:10px; }
+  .badge { width:26px; height:26px; border-radius:6px; background:var(--fill-accent); color:var(--on-accent);
+           display:flex; align-items:center; justify-content:center; font-weight:600; font-size:13px; }
+  .role { font-size:11px; padding:3px 8px; border-radius:var(--radius); background:var(--bg-accent); color:var(--text-accent); }
+
+  .layout { display:flex; flex-direction:column; gap:16px; }
+  .panel { border:0.5px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+  .panel-header { display:flex; align-items:center; justify-content:space-between; padding:6px 8px 6px 10px;
+                  font-size:10px; font-family: ui-monospace, monospace; color:var(--text-muted);
+                  background:var(--surface-1); border-bottom:0.5px solid var(--border); }
+  .formula-bar { padding:5px 10px; font-size:11px; font-family: ui-monospace, monospace;
+                 color:var(--text-secondary); background:var(--surface-0); border-bottom:0.5px solid var(--border); }
+  .add-btn { width:20px; height:20px; border:none; background:transparent; color:var(--text-secondary);
+             font-size:15px; line-height:1; cursor:pointer; border-radius:4px; }
+  .add-btn:hover { background:var(--surface-1); }
+  .add-row { padding:6px 10px; }
+
+  .tabs { display:flex; gap:2px; padding:6px 10px 0; background:var(--surface-1); border-bottom:0.5px solid var(--border); }
+  .tab { border:none; border-radius:6px 6px 0 0; padding:6px 12px; font-size:12px; cursor:pointer;
+         background:transparent; color:var(--text-secondary); }
+  .tab.active { background:var(--surface-0); color:var(--text-primary); font-weight:600; }
+  .tab-panel { display:none; }
+  .tab-panel.active { display:block; }
+
+  table { width:100%; border-collapse:collapse; font-size:13px; table-layout:fixed; }
+  thead tr.ref-row th, thead tr.name-row th { background:var(--surface-1); border-bottom:0.5px solid var(--border); }
+  thead tr.ref-row th { text-align:center; padding:4px; color:var(--text-muted); font-weight:500; }
+  thead tr.name-row th { text-align:left; padding:6px 10px; color:var(--text-secondary); font-weight:500; }
+  th.num, td.num { text-align:right; }
+  td { padding:8px 10px; border-bottom:0.5px solid var(--border); height:34px; }
+  td.gutter { text-align:center; padding:0; color:var(--text-muted); font-size:11px; }
+  tbody tr:last-child td { border-bottom: none; }
+
+  .pill { font-size:11px; padding:2px 8px; border-radius:var(--radius); }
+  .pill.overdue { background:var(--bg-danger); color:var(--text-danger); }
+  .pill.active { background:var(--bg-success); color:var(--text-success); }
+  .pill.closed { background:var(--surface-1); color:var(--text-muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="toolbar">
+    <div class="brand">
+      <div class="badge">G</div>
+      <span style="font-weight:600;">Gridyard</span>
+      <span style="color:var(--text-muted);">/</span>
+      <span style="color:var(--text-secondary);">Loan review</span>
+    </div>
+    <span class="role">Loan officer</span>
+  </div>
+
+  <div class="layout">
+
+    <div class="panel">
+      <div class="panel-header"><span>main</span><button class="add-btn" title="Add column">+</button></div>
+      <div class="formula-bar">C3&nbsp;&nbsp;=IF(D3&gt;7,"Overdue","Active")</div>
+      <table>
+        <colgroup><col style="width:26px"><col style="width:168px"><col style="width:90px"><col style="width:84px"><col style="width:90px"></colgroup>
+        <thead>
+          <tr class="ref-row"><th></th><th>A</th><th>B</th><th>C</th><th>D</th></tr>
+          <tr class="name-row"><th></th><th>Borrower</th><th class="num">Overdue</th><th>Status</th><th class="num">Days late</th></tr>
+        </thead>
+        <tbody id="main-body"></tbody>
+      </table>
+      <div class="add-row"><button class="add-btn" title="Add row">+</button></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><span>bottom · columns match main (aggregate tab)</span><button class="add-btn" title="Add column">+</button></div>
+      <div class="tabs">
+        <button class="tab active" id="tab-agg" onclick="showTab('agg')">Aggregate</button>
+        <button class="tab" id="tab-notes" onclick="showTab('notes')">Notes</button>
+      </div>
+
+      <div class="tab-panel active" id="panel-agg">
+        <table>
+          <colgroup><col style="width:26px"><col style="width:168px"><col style="width:90px"><col style="width:84px"><col style="width:90px"></colgroup>
+          <thead>
+            <tr class="ref-row"><th></th><th>A</th><th>B</th><th>C</th><th>D</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="gutter">1</td>
+              <td style="color:var(--text-secondary);">Total (7)</td>
+              <td class="num" style="font-weight:600;">$48,200</td>
+              <td style="color:var(--text-muted);">—</td>
+              <td class="num" style="color:var(--text-muted);">—</td>
+            </tr>
+            <tr>
+              <td class="gutter">2</td>
+              <td style="color:var(--text-secondary);">Average</td>
+              <td class="num">$6,886</td>
+              <td style="color:var(--text-muted);">—</td>
+              <td class="num" style="font-weight:600;">11 days</td>
+            </tr>
+            <tr>
+              <td class="gutter">3</td>
+              <td style="color:var(--text-secondary);">Max</td>
+              <td class="num">$14,800</td>
+              <td style="color:var(--text-muted);">—</td>
+              <td class="num">31 days</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="tab-panel" id="panel-notes">
+        <table>
+          <colgroup><col style="width:220px"><col style="width:220px"></colgroup>
+          <thead><tr><th style="padding:8px 10px; color:var(--text-secondary);">Label</th><th style="padding:8px 10px; color:var(--text-secondary);">Value</th></tr></thead>
+          <tbody>
+            <tr><td>Approval policy</td><td style="color:var(--text-secondary);">policy.pdf</td></tr>
+            <tr><td>Q1 review</td><td style="color:var(--text-secondary);">notes.docx</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="add-row"><button class="add-btn" title="Add row">+</button></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  function showTab(which) {
+    document.getElementById("panel-agg").classList.toggle("active", which === "agg");
+    document.getElementById("panel-notes").classList.toggle("active", which === "notes");
+    document.getElementById("tab-agg").classList.toggle("active", which === "agg");
+    document.getElementById("tab-notes").classList.toggle("active", which === "notes");
+  }
+
+  const rows = [
+    ["Alam Textiles", 8400, "overdue", "Overdue", 14],
+    ["Nirvana Foods", 2100, "active", "Active", 0],
+    ["Karim & Sons", 6300, "overdue", "Overdue", 22],
+    ["Deltapoint Ltd", 0, "closed", "Closed", 0],
+    ["Riverbend Farms", 5200, "active", "Active", 3],
+    ["Orchid Apparel", 11400, "overdue", "Overdue", 9],
+    ["Metro Traders", 14800, "overdue", "Overdue", 31]
+  ];
+  const mainBody = document.getElementById("main-body");
+  rows.forEach((r, i) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="gutter">${i + 1}</td>
+      <td>${r[0]}</td>
+      <td class="num">${r[1] ? "$" + r[1].toLocaleString() : "—"}</td>
+      <td><span class="pill ${r[2]}">${r[3]}</span></td>
+      <td class="num" style="color:var(--text-secondary);">${r[4] || "—"}</td>
+    `;
+    mainBody.appendChild(tr);
+  });
+</script>
+</body>
+</html>

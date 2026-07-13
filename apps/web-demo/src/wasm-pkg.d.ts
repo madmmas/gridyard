@@ -1,4 +1,11 @@
-declare module "./wasm-pkg/gridyard_wasm.js" {
+/**
+ * Types for the wasm-pack output under `src/wasm-pkg/`.
+ *
+ * That directory is gitignored (generated locally / by `build:wasm`), so CI
+ * typecheck needs this ambient declaration. Relative `declare module "./…"`
+ * names are not matched by TypeScript — use a wildcard instead.
+ */
+declare module "*gridyard_wasm.js" {
   export class Grid {
     set_cell(row: number, col: number, input: string): void;
     get_cell(row: number, col: number): unknown;

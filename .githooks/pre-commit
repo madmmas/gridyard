@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Pre-commit: same floor as CI (fmt/clippy/test + lint/test).
+# Enable once per clone:  git config core.hooksPath .githooks
+# Bypass in an emergency: SKIP_HOOKS=1 git commit ...
+
+set -euo pipefail
+
+if [ "${SKIP_HOOKS:-}" = "1" ]; then
+  echo "pre-commit: SKIP_HOOKS=1 — skipping checks"
+  exit 0
+fi
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+red() { printf '\033[31m%s\033[0m\n' "$*"; }
+green() { printf '\033[32m%s\033[0m\n' "$*"; }
+step() { printf '\n→ %s\n' "$*"; }
+
+fail() {
+  red "pre-commit failed: $*"
+  red "Fix the issues above, or set SKIP_HOOKS=1 to bypass once."
+  exit 1
+}
+
+step "cargo fmt --all -- --check"
+cargo fmt --all -- --check || fail "rustfmt"
+
+step "cargo clippy --workspace --all-targets -- -D warnings"
+cargo clippy --workspace --all-targets -- -D warnings || fail "clippy"
+
+step "cargo test --workspace"
+cargo test --workspace || fail "cargo test"
+
+if [ -f package.json ]; then
+  step "npm run lint --workspaces --if-present"
+  npm run lint --workspaces --if-present || fail "npm lint"
+
+  step "npm test --workspaces --if-present"
+  npm test --workspaces --if-present || fail "npm test"
+fi
+
+green "pre-commit: all checks passed"
+exit 0

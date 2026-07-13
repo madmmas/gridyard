@@ -10,3 +10,6 @@ repository.workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+
+[lints]
+workspace = true

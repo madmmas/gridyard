@@ -20,6 +20,11 @@ export {
   type BoundMainGrid,
   type BoundRow,
 } from "./binding.js";
+export { EMPLOYEE_MANAGEMENT_WORKSPACE } from "./fixtures/employee-management.js";
+export {
+  EMPLOYEE_MANAGEMENT_PERMISSIONS,
+  EMPLOYEE_MANAGEMENT_SAMPLE_USERS,
+} from "./fixtures/employee-management-permissions.js";
 export { LOAN_REVIEW_WORKSPACE } from "./fixtures/loan-review.js";
 export {
   LOAN_REVIEW_PERMISSIONS,

@@ -29,8 +29,12 @@ import {
   type WorkspaceRegion,
 } from "@gridyard/grid-renderer";
 import {
+  EMPLOYEE_MANAGEMENT_PERMISSIONS,
+  EMPLOYEE_MANAGEMENT_SAMPLE_USERS,
+  EMPLOYEE_MANAGEMENT_WORKSPACE,
   LOAN_REVIEW_PERMISSIONS,
   LOAN_REVIEW_SAMPLE_USERS,
+  LOAN_REVIEW_WORKSPACE,
   buildFormView,
   isRegionVisible,
   projectColumnsForPermissions,
@@ -38,13 +42,15 @@ import {
   type BoundMainGrid,
   type BoundRow,
   type EffectivePermissions,
+  type LayeredPermissionDefinition,
   type PermissionColumnProjection,
   type SamplePermissionUser,
+  type WorkspaceDefinition,
   type WorkspaceLayout,
 } from "@gridyard/workspace-runtime";
 
 import { historyActionFromKey } from "./history-keys.js";
-import { loadLoanReviewMain } from "./load-loan-review.js";
+import { loadWorkspaceMain } from "./load-workspace.js";
 import { renderFormView } from "./render-form.js";
 import {
   engineNumericColumns,
@@ -53,6 +59,28 @@ import {
   seedGridFromBoundMain,
 } from "./seed-from-bound-grid.js";
 import init, { create_workspace } from "./wasm-pkg/gridyard_wasm.js";
+
+interface DemoWorkspaceEntry {
+  id: string;
+  definition: WorkspaceDefinition;
+  permissions: LayeredPermissionDefinition;
+  sampleUsers: readonly SamplePermissionUser[];
+}
+
+const DEMO_WORKSPACES: readonly DemoWorkspaceEntry[] = [
+  {
+    id: "loan-review",
+    definition: LOAN_REVIEW_WORKSPACE,
+    permissions: LOAN_REVIEW_PERMISSIONS,
+    sampleUsers: LOAN_REVIEW_SAMPLE_USERS,
+  },
+  {
+    id: "employee-management",
+    definition: EMPLOYEE_MANAGEMENT_WORKSPACE,
+    permissions: EMPLOYEE_MANAGEMENT_PERMISSIONS,
+    sampleUsers: EMPLOYEE_MANAGEMENT_SAMPLE_USERS,
+  },
+];
 
 interface RegionUi {
   region: WorkspaceRegion;
@@ -86,7 +114,8 @@ async function main(): Promise<void> {
   const bottomFormulaInputEl = document.getElementById("bottom-formula-input");
   const mainFormulaAddrEl = document.getElementById("main-formula-addr");
   const bottomFormulaAddrEl = document.getElementById("bottom-formula-addr");
-  const workspaceTitleEl = document.getElementById("workspace-title");
+  const workspaceSelectEl = document.getElementById("workspace-select");
+  const mainPanelHeaderEl = document.getElementById("main-panel-header");
   const formBodyEl = document.getElementById("form-body");
   const formPanelHeaderEl = document.getElementById("form-panel-header");
   const tabAggregateEl = document.getElementById("tab-aggregate");
@@ -105,7 +134,8 @@ async function main(): Promise<void> {
     !(bottomFormulaInputEl instanceof HTMLInputElement) ||
     mainFormulaAddrEl === null ||
     bottomFormulaAddrEl === null ||
-    workspaceTitleEl === null ||
+    !(workspaceSelectEl instanceof HTMLSelectElement) ||
+    mainPanelHeaderEl === null ||
     formBodyEl === null ||
     formPanelHeaderEl === null ||
     !(tabAggregateEl instanceof HTMLButtonElement) ||
@@ -118,11 +148,12 @@ async function main(): Promise<void> {
     !(userSelectEl instanceof HTMLSelectElement)
   ) {
     throw new Error(
-      "expected main/bottom grid + formula bar + tabs + user/form elements",
+      "expected main/bottom grid + formula bar + tabs + workspace/user/form elements",
     );
   }
   const status: HTMLElement = statusEl;
-  const workspaceTitle = workspaceTitleEl;
+  const workspaceSelect = workspaceSelectEl;
+  const mainPanelHeader = mainPanelHeaderEl;
   const formBody = formBodyEl;
   const formPanelHeader = formPanelHeaderEl;
   const tabAggregate = tabAggregateEl;
@@ -139,10 +170,22 @@ async function main(): Promise<void> {
     throw new Error("2d context unavailable");
   }
 
+  for (const entry of DEMO_WORKSPACES) {
+    const option = document.createElement("option");
+    option.value = entry.id;
+    option.textContent = entry.definition.name;
+    workspaceSelect.append(option);
+  }
+  workspaceSelect.value = DEMO_WORKSPACES[0]?.id ?? "loan-review";
+
   await init();
 
-  const sampleUsers = LOAN_REVIEW_SAMPLE_USERS;
-  const permissions = LOAN_REVIEW_PERMISSIONS;
+  let activeEntry!: DemoWorkspaceEntry;
+  const firstWorkspace = DEMO_WORKSPACES[0];
+  if (firstWorkspace === undefined) {
+    throw new Error("no demo workspaces configured");
+  }
+  activeEntry = firstWorkspace;
 
   let rawWorkspace = create_workspace();
   let mainEngine = asRegionEditableGrid(rawWorkspace, "main");
@@ -273,12 +316,12 @@ async function main(): Promise<void> {
 
   function applyPermissionsFromUser(userId: string): void {
     const sample =
-      sampleUsers.find((u) => u.id === userId) ??
-      sampleUsers[0];
+      activeEntry.sampleUsers.find((u) => u.id === userId) ??
+      activeEntry.sampleUsers[0];
     if (sample === undefined) {
       return;
     }
-    effective = resolvePermissions(permissions, sample.position);
+    effective = resolvePermissions(activeEntry.permissions, sample.position);
     projection = projectColumnsForPermissions(
       workspaceLayout.main.columns,
       effective,
@@ -325,8 +368,8 @@ async function main(): Promise<void> {
 
   function statusLine(): string {
     const sample =
-      sampleUsers.find((u) => u.id === userSelect.value) ??
-      sampleUsers[0];
+      activeEntry.sampleUsers.find((u) => u.id === userSelect.value) ??
+      activeEntry.sampleUsers[0];
     const userBit = sample === undefined ? "" : ` · ${sample.label}`;
     const denied =
       lastDeniedMessage === null ? "" : ` · ${lastDeniedMessage}`;
@@ -624,7 +667,7 @@ async function main(): Promise<void> {
     );
     rawWorkspace.clear_history();
 
-    workspaceTitle.textContent = layout.name;
+    mainPanelHeader.textContent = `main · ${layout.main.dataSource}`;
     bottomUi.paintBase = {
       ...bottomUi.paintBase,
       rows: bottomDims.rows,
@@ -646,16 +689,22 @@ async function main(): Promise<void> {
     );
   }
 
-  async function activateLoanReview(): Promise<void> {
-    status.textContent = "Loading Loan Review…";
+  async function activateWorkspace(entryId: string): Promise<void> {
+    const entry =
+      DEMO_WORKSPACES.find((w) => w.id === entryId) ?? DEMO_WORKSPACES[0];
+    if (entry === undefined) {
+      return;
+    }
+    activeEntry = entry;
+    status.textContent = `Loading ${entry.definition.name}…`;
 
-    const loaded = await loadLoanReviewMain();
+    const loaded = await loadWorkspaceMain(entry.definition);
     if (!loaded.ok) {
-      status.textContent = `Failed to load loans: ${loaded.error.message}. Is the mock server on :4000? (make up)`;
+      status.textContent = `Failed to load ${entry.definition.regions.main.dataSource}: ${loaded.error.message}. Is the mock server on :4000? (make up)`;
       return;
     }
 
-    populateUserSelect(sampleUsers);
+    populateUserSelect(entry.sampleUsers);
     seedFromBound(loaded.layout, loaded.grid);
     applyBottomTabUi();
     renderNotesTable();
@@ -663,12 +712,15 @@ async function main(): Promise<void> {
     mainUi.canvas.focus();
   }
 
-
   wireRegion(mainUi);
   wireRegion(bottomUi);
 
   userSelect.addEventListener("change", () => {
     applyPermissionsFromUser(userSelect.value);
+  });
+
+  workspaceSelect.addEventListener("change", () => {
+    void activateWorkspace(workspaceSelect.value);
   });
 
   tabAggregate.addEventListener("click", () => {
@@ -706,7 +758,7 @@ async function main(): Promise<void> {
     repaintAll();
   });
 
-  await activateLoanReview();
+  await activateWorkspace(workspaceSelect.value);
 }
 
 main().catch((err: unknown) => {

@@ -7,6 +7,7 @@ import {
   type GridLayout,
   type GridLayoutInput,
 } from "./layout.js";
+import type { CellAddress } from "./selection.js";
 import type { GridDataSource } from "./types.js";
 
 /** Colors aligned with `docs/workspace-ui-mockup.html`. */
@@ -17,6 +18,10 @@ export const GRID_THEME = {
   border: "#e4e4e7",
   surface0: "#ffffff",
   surface1: "#f4f4f5",
+  /** Active selection fill (`--bg-accent` in the mockup). */
+  selectionFill: "#e6f1fb",
+  /** Active selection border (`--fill-accent` in the mockup). */
+  selectionBorder: "#378add",
 } as const;
 
 export interface PaintStaticGridOptions extends GridLayoutInput {
@@ -26,6 +31,8 @@ export interface PaintStaticGridOptions extends GridLayoutInput {
   source: GridDataSource;
   /** Columns whose values should be right-aligned (like mockup `.num`). */
   numericColumns?: ReadonlySet<number>;
+  /** Single active cell to highlight; omit or `null` for none. */
+  selection?: CellAddress | null;
 }
 
 /**
@@ -39,7 +46,7 @@ export function paintStaticGrid(
   options: PaintStaticGridOptions,
 ): GridLayout {
   const layout = computeGridLayout(options);
-  const { rows, cols, columnNames, source, numericColumns } = options;
+  const { rows, cols, columnNames, source, numericColumns, selection } = options;
 
   ctx.save();
   ctx.clearRect(0, 0, layout.totalWidth, layout.totalHeight);
@@ -50,11 +57,65 @@ export function paintStaticGrid(
   paintRefRow(ctx, layout, cols);
   paintNameRow(ctx, layout, columnNames);
   paintGutter(ctx, layout, rows);
+  paintSelectionFill(ctx, layout, rows, cols, selection ?? null);
   paintBody(ctx, layout, rows, cols, source, numericColumns ?? new Set());
   paintGridLines(ctx, layout, rows, cols);
+  paintSelectionBorder(ctx, layout, rows, cols, selection ?? null);
 
   ctx.restore();
   return layout;
+}
+
+function selectionInBounds(
+  selection: CellAddress | null,
+  rows: number,
+  cols: number,
+): CellAddress | null {
+  if (selection === null) {
+    return null;
+  }
+  if (
+    selection.row < 0 ||
+    selection.col < 0 ||
+    selection.row >= rows ||
+    selection.col >= cols
+  ) {
+    return null;
+  }
+  return selection;
+}
+
+function paintSelectionFill(
+  ctx: CanvasRenderingContext2D,
+  layout: GridLayout,
+  rows: number,
+  cols: number,
+  selection: CellAddress | null,
+): void {
+  const active = selectionInBounds(selection, rows, cols);
+  if (active === null) {
+    return;
+  }
+  const rect = dataCellRect(layout, active.row, active.col);
+  ctx.fillStyle = GRID_THEME.selectionFill;
+  ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+}
+
+function paintSelectionBorder(
+  ctx: CanvasRenderingContext2D,
+  layout: GridLayout,
+  rows: number,
+  cols: number,
+  selection: CellAddress | null,
+): void {
+  const active = selectionInBounds(selection, rows, cols);
+  if (active === null) {
+    return;
+  }
+  const rect = dataCellRect(layout, active.row, active.col);
+  ctx.strokeStyle = GRID_THEME.selectionBorder;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2);
 }
 
 function paintHeaderBackground(ctx: CanvasRenderingContext2D, layout: GridLayout): void {

@@ -9,6 +9,10 @@ import {
 } from "./layout.js";
 import type { CellAddress } from "./selection.js";
 import type { GridDataSource } from "./types.js";
+import {
+  visibleRowRange,
+  type VisibleRowRange,
+} from "./viewport.js";
 
 /** Colors aligned with `docs/workspace-ui-mockup.html`. */
 export const GRID_THEME = {
@@ -26,9 +30,30 @@ export const GRID_THEME = {
   selectionBorder: "#378add",
   /** Error cell text (`--text-danger` in the mockup). */
   textDanger: "#791f1f",
+  /** Search-match cell fill. */
+  searchMatchFill: "#fef3c7",
+  /** Active (focused) search-match border. */
+  searchActiveBorder: "#d97706",
 } as const;
 
 export type GridRegionChrome = "main" | "bottom";
+
+/**
+ * Viewport window for virtualized painting. When set, only intersecting
+ * rows are painted; canvas should be sized to `height` × full content width.
+ * Omit to paint the entire sheet (small grids / tests).
+ *
+ * Horizontal virtualization is intentionally skipped — current workspaces
+ * use a handful of columns and do not need it yet.
+ */
+export interface PaintViewport {
+  /** Vertical scroll offset of the body (pixels below the sticky header). */
+  scrollTop: number;
+  /** Paint surface height including sticky header chrome. */
+  height: number;
+  /** Extra rows above/below the strict window (default 2). */
+  overscan?: number;
+}
 
 export interface PaintStaticGridOptions extends GridLayoutInput {
   /** Human-readable field names for the name row (one per column). */
@@ -44,13 +69,23 @@ export interface PaintStaticGridOptions extends GridLayoutInput {
    * Aggregate region never reads as a merged frozen pane with main.
    */
   chrome?: GridRegionChrome;
+  /**
+   * When set, paints only the visible row window (virtual rendering).
+   * Headers stay fixed; body cells are offset by `-scrollTop`.
+   */
+  viewport?: PaintViewport;
+  /** Cells matching an active search (literal/substring); painted with highlight. */
+  searchMatches?: readonly CellAddress[];
+  /** The focused search match (next/prev); stronger border than other matches. */
+  activeSearchMatch?: CellAddress | null;
 }
 
 /**
- * Paints a fixed-size main-region grid onto `ctx`: ref row, name row,
+ * Paints a main/bottom Aggregate grid onto `ctx`: ref row, name row,
  * row gutter, and cell values from `source.get_cell`.
  *
- * Returns the resolved layout (useful for sizing the canvas element).
+ * With `viewport`, only visible rows are painted — engine state is untouched.
+ * Returns the full content layout (useful for scroll content sizing / hit-test).
  */
 export function paintStaticGrid(
   ctx: CanvasRenderingContext2D,
@@ -60,28 +95,76 @@ export function paintStaticGrid(
   const { rows, cols, columnNames, source, numericColumns, selection } = options;
   const chrome = options.chrome ?? "main";
   const bodyFill = chrome === "bottom" ? GRID_THEME.surfaceBottom : GRID_THEME.surface0;
+  const paintH = options.viewport?.height ?? layout.totalHeight;
+  const scrollTop = options.viewport?.scrollTop ?? 0;
+  const rowWindow = resolveRowWindow(layout, rows, options.viewport);
 
   ctx.save();
-  ctx.clearRect(0, 0, layout.totalWidth, layout.totalHeight);
+  ctx.clearRect(0, 0, layout.totalWidth, paintH);
   ctx.fillStyle = bodyFill;
-  ctx.fillRect(0, 0, layout.totalWidth, layout.totalHeight);
+  ctx.fillRect(0, 0, layout.totalWidth, paintH);
 
-  paintHeaderBackground(ctx, layout);
+  paintHeaderBackground(ctx, layout, paintH);
   paintRefRow(ctx, layout, cols);
   paintNameRow(ctx, layout, columnNames);
-  paintGutter(ctx, layout, rows);
-  paintSelectionFill(ctx, layout, rows, cols, selection ?? null);
-  paintBody(ctx, layout, rows, cols, source, numericColumns ?? new Set());
-  paintGridLines(ctx, layout, rows, cols);
-  paintSelectionBorder(ctx, layout, rows, cols, selection ?? null);
+  paintGutter(ctx, layout, rowWindow, scrollTop);
+  paintSearchHighlights(
+    ctx,
+    layout,
+    rows,
+    cols,
+    rowWindow,
+    scrollTop,
+    options.searchMatches ?? [],
+    options.activeSearchMatch ?? null,
+  );
+  paintSelectionFill(ctx, layout, rows, cols, rowWindow, scrollTop, selection ?? null);
+  paintBody(
+    ctx,
+    layout,
+    cols,
+    rowWindow,
+    scrollTop,
+    source,
+    numericColumns ?? new Set(),
+  );
+  paintGridLines(ctx, layout, rows, cols, rowWindow, scrollTop, paintH);
+  paintSelectionBorder(ctx, layout, rows, cols, rowWindow, scrollTop, selection ?? null);
+  paintActiveSearchBorder(
+    ctx,
+    layout,
+    rows,
+    cols,
+    rowWindow,
+    scrollTop,
+    options.activeSearchMatch ?? null,
+  );
 
   // Outer border so each region reads as its own panel, not a shared pane.
   ctx.strokeStyle = GRID_THEME.border;
   ctx.lineWidth = 1;
-  ctx.strokeRect(0.5, 0.5, layout.totalWidth - 1, layout.totalHeight - 1);
+  ctx.strokeRect(0.5, 0.5, layout.totalWidth - 1, paintH - 1);
 
   ctx.restore();
   return layout;
+}
+
+function resolveRowWindow(
+  layout: GridLayout,
+  rows: number,
+  viewport: PaintViewport | undefined,
+): VisibleRowRange {
+  if (viewport === undefined) {
+    return { startRow: 0, endRow: rows };
+  }
+  return visibleRowRange({
+    scrollTop: viewport.scrollTop,
+    viewportHeight: viewport.height,
+    headerHeight: layout.headerHeight,
+    rowHeight: layout.rowHeight,
+    totalRows: rows,
+    overscan: viewport.overscan ?? 2,
+  });
 }
 
 function selectionInBounds(
@@ -103,20 +186,26 @@ function selectionInBounds(
   return selection;
 }
 
+function rowInWindow(row: number, window: VisibleRowRange): boolean {
+  return row >= window.startRow && row < window.endRow;
+}
+
 function paintSelectionFill(
   ctx: CanvasRenderingContext2D,
   layout: GridLayout,
   rows: number,
   cols: number,
+  rowWindow: VisibleRowRange,
+  scrollTop: number,
   selection: CellAddress | null,
 ): void {
   const active = selectionInBounds(selection, rows, cols);
-  if (active === null) {
+  if (active === null || !rowInWindow(active.row, rowWindow)) {
     return;
   }
   const rect = dataCellRect(layout, active.row, active.col);
   ctx.fillStyle = GRID_THEME.selectionFill;
-  ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+  ctx.fillRect(rect.x, rect.y - scrollTop, rect.width, rect.height);
 }
 
 function paintSelectionBorder(
@@ -124,22 +213,99 @@ function paintSelectionBorder(
   layout: GridLayout,
   rows: number,
   cols: number,
+  rowWindow: VisibleRowRange,
+  scrollTop: number,
   selection: CellAddress | null,
 ): void {
   const active = selectionInBounds(selection, rows, cols);
-  if (active === null) {
+  if (active === null || !rowInWindow(active.row, rowWindow)) {
     return;
   }
   const rect = dataCellRect(layout, active.row, active.col);
   ctx.strokeStyle = GRID_THEME.selectionBorder;
   ctx.lineWidth = 2;
-  ctx.strokeRect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2);
+  ctx.strokeRect(
+    rect.x + 1,
+    rect.y - scrollTop + 1,
+    rect.width - 2,
+    rect.height - 2,
+  );
 }
 
-function paintHeaderBackground(ctx: CanvasRenderingContext2D, layout: GridLayout): void {
+function paintSearchHighlights(
+  ctx: CanvasRenderingContext2D,
+  layout: GridLayout,
+  rows: number,
+  cols: number,
+  rowWindow: VisibleRowRange,
+  scrollTop: number,
+  matches: readonly CellAddress[],
+  active: CellAddress | null,
+): void {
+  ctx.fillStyle = GRID_THEME.searchMatchFill;
+  for (const match of matches) {
+    if (!selectionInBounds(match, rows, cols)) {
+      continue;
+    }
+    if (!rowInWindow(match.row, rowWindow)) {
+      continue;
+    }
+    if (
+      active !== null &&
+      active.row === match.row &&
+      active.col === match.col
+    ) {
+      continue; // active gets its own stronger stroke after fill
+    }
+    const rect = dataCellRect(layout, match.row, match.col);
+    ctx.fillRect(rect.x, rect.y - scrollTop, rect.width, rect.height);
+  }
+  if (active !== null && selectionInBounds(active, rows, cols)) {
+    if (rowInWindow(active.row, rowWindow)) {
+      const rect = dataCellRect(layout, active.row, active.col);
+      ctx.fillStyle = GRID_THEME.searchMatchFill;
+      ctx.fillRect(rect.x, rect.y - scrollTop, rect.width, rect.height);
+    }
+  }
+}
+
+function paintActiveSearchBorder(
+  ctx: CanvasRenderingContext2D,
+  layout: GridLayout,
+  rows: number,
+  cols: number,
+  rowWindow: VisibleRowRange,
+  scrollTop: number,
+  active: CellAddress | null,
+): void {
+  const cell = selectionInBounds(active, rows, cols);
+  if (cell === null || !rowInWindow(cell.row, rowWindow)) {
+    return;
+  }
+  const rect = dataCellRect(layout, cell.row, cell.col);
+  ctx.strokeStyle = GRID_THEME.searchActiveBorder;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(
+    rect.x + 1,
+    rect.y - scrollTop + 1,
+    rect.width - 2,
+    rect.height - 2,
+  );
+}
+
+function paintHeaderBackground(
+  ctx: CanvasRenderingContext2D,
+  layout: GridLayout,
+  paintH: number,
+): void {
   ctx.fillStyle = GRID_THEME.surface1;
   ctx.fillRect(0, 0, layout.totalWidth, layout.headerHeight);
-  ctx.fillRect(0, layout.headerHeight, layout.gutterWidth, layout.bodyHeight);
+  ctx.fillRect(
+    0,
+    layout.headerHeight,
+    layout.gutterWidth,
+    Math.max(0, paintH - layout.headerHeight),
+  );
 }
 
 function paintRefRow(ctx: CanvasRenderingContext2D, layout: GridLayout, cols: number): void {
@@ -173,13 +339,19 @@ function paintNameRow(
   }
 }
 
-function paintGutter(ctx: CanvasRenderingContext2D, layout: GridLayout, rows: number): void {
+function paintGutter(
+  ctx: CanvasRenderingContext2D,
+  layout: GridLayout,
+  rowWindow: VisibleRowRange,
+  scrollTop: number,
+): void {
   ctx.fillStyle = GRID_THEME.textMuted;
   ctx.font = "11px ui-sans-serif, system-ui, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  for (let r = 0; r < rows; r += 1) {
-    const y = layout.headerHeight + r * layout.rowHeight + layout.rowHeight / 2;
+  for (let r = rowWindow.startRow; r < rowWindow.endRow; r += 1) {
+    const y =
+      layout.headerHeight + r * layout.rowHeight + layout.rowHeight / 2 - scrollTop;
     ctx.fillText(rowIndexToLabel(r), layout.gutterWidth / 2, y);
   }
 }
@@ -187,19 +359,20 @@ function paintGutter(ctx: CanvasRenderingContext2D, layout: GridLayout, rows: nu
 function paintBody(
   ctx: CanvasRenderingContext2D,
   layout: GridLayout,
-  rows: number,
   cols: number,
+  rowWindow: VisibleRowRange,
+  scrollTop: number,
   source: GridDataSource,
   numericColumns: ReadonlySet<number>,
 ): void {
   ctx.font = "13px ui-sans-serif, system-ui, sans-serif";
   ctx.textBaseline = "middle";
-  for (let r = 0; r < rows; r += 1) {
+  for (let r = rowWindow.startRow; r < rowWindow.endRow; r += 1) {
     for (let c = 0; c < cols; c += 1) {
       const rect = dataCellRect(layout, r, c);
       const value = source.get_cell(r, c);
       const text = formatCellValue(value);
-      const y = rect.y + rect.height / 2;
+      const y = rect.y - scrollTop + rect.height / 2;
       ctx.fillStyle =
         value.type === "error" ? GRID_THEME.textDanger : GRID_THEME.textPrimary;
       if (numericColumns.has(c) && value.type !== "error") {
@@ -218,32 +391,41 @@ function paintGridLines(
   layout: GridLayout,
   rows: number,
   cols: number,
+  rowWindow: VisibleRowRange,
+  scrollTop: number,
+  paintH: number,
 ): void {
   ctx.strokeStyle = GRID_THEME.border;
   ctx.lineWidth = 1;
   ctx.beginPath();
 
-  // Horizontal: below ref, below name, then each body row.
+  // Horizontal: below ref, below name, then each visible body row.
   let y = layout.refRowHeight;
   ctx.moveTo(0, y + 0.5);
   ctx.lineTo(layout.totalWidth, y + 0.5);
   y = layout.headerHeight;
   ctx.moveTo(0, y + 0.5);
   ctx.lineTo(layout.totalWidth, y + 0.5);
-  for (let r = 1; r <= rows; r += 1) {
-    const yy = layout.headerHeight + r * layout.rowHeight;
+  for (let r = rowWindow.startRow; r <= rowWindow.endRow; r += 1) {
+    if (r < 0 || r > rows) {
+      continue;
+    }
+    const yy = layout.headerHeight + r * layout.rowHeight - scrollTop;
+    if (yy < layout.headerHeight - 1 || yy > paintH + 1) {
+      continue;
+    }
     ctx.moveTo(0, yy + 0.5);
     ctx.lineTo(layout.totalWidth, yy + 0.5);
   }
 
-  // Vertical: after gutter, then each column.
+  // Vertical: after gutter, then each column (full paint height).
   ctx.moveTo(layout.gutterWidth + 0.5, 0);
-  ctx.lineTo(layout.gutterWidth + 0.5, layout.totalHeight);
+  ctx.lineTo(layout.gutterWidth + 0.5, paintH);
   for (let c = 0; c < cols; c += 1) {
     const width = layout.columnWidths[c] ?? 0;
     const x = columnLeft(layout, c) + width;
     ctx.moveTo(x + 0.5, 0);
-    ctx.lineTo(x + 0.5, layout.totalHeight);
+    ctx.lineTo(x + 0.5, paintH);
   }
 
   ctx.stroke();

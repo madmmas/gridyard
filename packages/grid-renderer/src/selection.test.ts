@@ -127,4 +127,12 @@ describe("hitTestDataCell", () => {
     expect(hitTestDataCell(layout, layout.totalWidth + 1, 60, bounds)).toBeNull();
     expect(hitTestDataCell(layout, 40, layout.totalHeight + 1, bounds)).toBeNull();
   });
+
+  it("accounts for virtual scrollTop when mapping viewport y", () => {
+    // After scrolling one row down, canvas y just below the header hits row 1.
+    expect(hitTestDataCell(layout, 26 + 10, 52 + 10, bounds, 34)).toEqual({
+      row: 1,
+      col: 0,
+    });
+  });
 });

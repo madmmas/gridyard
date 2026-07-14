@@ -9,6 +9,31 @@ tried and abandoned — that's the whole point of this file existing.
 
 ---
 
+## 2026-07-14
+
+- Third issue batch (`docs/ISSUES/ISSUES_BATCH_03.md` §13–§18) landed on
+  `main`:
+  - **#32 / PR #39 — `gridyard-graph` + formula:** independent main/bottom
+    engines; `main!A1` / range cross-region reads; no bottom→main deps.
+  - **#33 / PR #40 — `gridyard-wasm`:** `create_workspace()` with
+    region-addressed `set_cell` / `get_cell` / `get_input`.
+  - **#34 / PR #41 — `@gridyard/grid-renderer` + demo:** bottom Aggregate
+    paint, column sync from main, `SUM`/`AVERAGE(main!…)` seeded totals.
+  - **#35 / PR #42 — demo Notes + tabs:** Aggregate/Notes switch without
+    resizing bottom; Notes is in-memory (no WASM); Aggregate draft preserved.
+  - **#36 / PR #43 — `@gridyard/workspace-runtime`:** permission resolution
+    (workspace / region / field / layout) with core→company→department→user
+    overlays; no auth, no UI enforcement, no mock-server permission JSON.
+  - **#37 / PR #44 — `web-demo` close-out:** restore Workspace undo/redo (shared
+    stack across main+bottom); ⌘/Ctrl+Z / Shift+Z / Ctrl+Y; clear history
+    after seed so fixture load isn't undoable.
+- Undo decision: one shared history for the whole `Workspace`, not
+  per-region stacks — editing main then bottom undoes bottom first. Matches
+  how users expect a single document, and Aggregate formulas that follow
+  main edits stay consistent when undoing.
+- Permission JSON on the mock server deferred until something loads overlays
+  over REST; unit tests build layers in memory.
+
 ## 2026-07-13
 
 - Second issue batch (`docs/ISSUES/ISSUES_BATCH_02.md` §7–§12) landed on

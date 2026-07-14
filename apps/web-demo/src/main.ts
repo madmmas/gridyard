@@ -28,6 +28,7 @@ import {
 } from "@gridyard/grid-renderer";
 
 import { loadLoanReviewMain } from "./load-loan-review.js";
+import { historyActionFromKey } from "./history-keys.js";
 import {
   paintConfigFromLayout,
   seedBottomAggregate,
@@ -127,6 +128,8 @@ async function main(): Promise<void> {
     dims.cols,
     paintConfig.numericColumns,
   );
+  // Don't let the user undo into fixture seeding.
+  rawWorkspace.clear_history();
 
   const mainUi: RegionUi = {
     region: "main",
@@ -233,7 +236,27 @@ async function main(): Promise<void> {
       selection: bottomUi.selection,
     });
 
-    status.textContent = `${workspaceLayout.name} · ${String(dims.rows)} loans · main ${formatSelection(mainUi.selection)} · bottom ${formatSelection(bottomUi.selection)}`;
+    status.textContent = `${workspaceLayout.name} · ${String(dims.rows)} loans · main ${formatSelection(mainUi.selection)} · bottom ${formatSelection(bottomUi.selection)}${historyHint()}`;
+  }
+
+  function historyHint(): string {
+    if (!rawWorkspace.can_undo() && !rawWorkspace.can_redo()) {
+      return "";
+    }
+    return ` · undo ${rawWorkspace.can_undo() ? "ready" : "—"} / redo ${rawWorkspace.can_redo() ? "ready" : "—"}`;
+  }
+
+  function applyHistory(kind: "undo" | "redo"): void {
+    mainUi.session = null;
+    bottomUi.session = null;
+    const changed =
+      kind === "undo" ? rawWorkspace.undo() : rawWorkspace.redo();
+    if (!changed) {
+      return;
+    }
+    syncFormulaBar(mainUi);
+    syncFormulaBar(bottomUi);
+    repaintAll();
   }
 
   function commitFromBar(ui: RegionUi, navKey: "Enter" | "Tab" | null): void {
@@ -294,6 +317,12 @@ async function main(): Promise<void> {
     });
 
     ui.canvas.addEventListener("keydown", (event) => {
+      const history = historyActionFromKey(event);
+      if (history !== null) {
+        event.preventDefault();
+        applyHistory(history);
+        return;
+      }
       if (!isSelectionNavKey(event.key)) {
         return;
       }
@@ -316,6 +345,12 @@ async function main(): Promise<void> {
       }
     });
     ui.formulaInput.addEventListener("keydown", (event) => {
+      const history = historyActionFromKey(event);
+      if (history !== null) {
+        event.preventDefault();
+        applyHistory(history);
+        return;
+      }
       if (event.key === "Enter") {
         event.preventDefault();
         commitFromBar(ui, "Enter");

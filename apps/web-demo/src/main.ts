@@ -1,21 +1,29 @@
 import {
+  addNotesRow,
   asRegionEditableGrid,
   beginEdit,
+  bottomControlTarget,
   cancelEdit,
   colIndexToLetters,
   commitEdit,
   computeBottomLayoutFromMain,
   computeGridLayout,
+  createBottomTabState,
+  createNotesRows,
   formulaBarText,
   hitTestDataCell,
   isSelectionNavKey,
   moveSelection,
   paintStaticGrid,
+  selectBottomTab,
   updateDraft,
+  updateNotesRow,
+  type BottomTabState,
   type CellAddress,
   type EditSession,
   type EditableGrid,
   type GridLayout,
+  type NotesRow,
   type WorkspaceRegion,
 } from "@gridyard/grid-renderer";
 
@@ -57,6 +65,12 @@ async function main(): Promise<void> {
   const mainFormulaAddrEl = document.getElementById("main-formula-addr");
   const bottomFormulaAddrEl = document.getElementById("bottom-formula-addr");
   const workspaceTitleEl = document.getElementById("workspace-title");
+  const tabAggregateEl = document.getElementById("tab-aggregate");
+  const tabNotesEl = document.getElementById("tab-notes");
+  const panelAggregateEl = document.getElementById("panel-aggregate");
+  const panelNotesEl = document.getElementById("panel-notes");
+  const notesBodyEl = document.getElementById("notes-body");
+  const bottomAddRowEl = document.getElementById("bottom-add-row");
   if (
     !(mainCanvasEl instanceof HTMLCanvasElement) ||
     !(bottomCanvasEl instanceof HTMLCanvasElement) ||
@@ -64,11 +78,23 @@ async function main(): Promise<void> {
     !(mainFormulaInputEl instanceof HTMLInputElement) ||
     !(bottomFormulaInputEl instanceof HTMLInputElement) ||
     mainFormulaAddrEl === null ||
-    bottomFormulaAddrEl === null
+    bottomFormulaAddrEl === null ||
+    !(tabAggregateEl instanceof HTMLButtonElement) ||
+    !(tabNotesEl instanceof HTMLButtonElement) ||
+    panelAggregateEl === null ||
+    panelNotesEl === null ||
+    notesBodyEl === null ||
+    !(bottomAddRowEl instanceof HTMLButtonElement)
   ) {
-    throw new Error("expected main/bottom grid + formula bar elements");
+    throw new Error("expected main/bottom grid + formula bar + tab elements");
   }
   const status: HTMLElement = statusEl;
+  const tabAggregate = tabAggregateEl;
+  const tabNotes = tabNotesEl;
+  const panelAggregate = panelAggregateEl;
+  const panelNotes = panelNotesEl;
+  const notesBody = notesBodyEl;
+  const bottomAddRow = bottomAddRowEl;
   const mainCtx = mainCanvasEl.getContext("2d");
   const bottomCtx = bottomCanvasEl.getContext("2d");
   if (mainCtx === null || bottomCtx === null) {
@@ -314,6 +340,100 @@ async function main(): Promise<void> {
   wireRegion(bottomUi);
   syncFormulaBar(mainUi);
   syncFormulaBar(bottomUi);
+
+  let bottomTabs: BottomTabState = createBottomTabState(
+    workspaceLayout.bottom.activeTab,
+  );
+  let notesRows: NotesRow[] = createNotesRows([
+    { label: "Approval policy", value: "policy.pdf" },
+    { label: "Q1 review", value: "notes.docx" },
+  ]);
+
+  function applyBottomTabUi(): void {
+    const onAggregate = bottomTabs.active === "aggregate";
+    tabAggregate.classList.toggle("active", onAggregate);
+    tabNotes.classList.toggle("active", !onAggregate);
+    tabAggregate.setAttribute("aria-selected", onAggregate ? "true" : "false");
+    tabNotes.setAttribute("aria-selected", onAggregate ? "false" : "true");
+    panelAggregate.classList.toggle("active", onAggregate);
+    panelNotes.classList.toggle("active", !onAggregate);
+    panelAggregate.hidden = !onAggregate;
+    panelNotes.hidden = onAggregate;
+    // Keep Aggregate session/draft/canvas intact while Notes is shown.
+  }
+
+  function renderNotesTable(): void {
+    notesBody.replaceChildren();
+    notesRows.forEach((row, index) => {
+      const tr = document.createElement("tr");
+      const labelTd = document.createElement("td");
+      const valueTd = document.createElement("td");
+      const labelInput = document.createElement("input");
+      const valueInput = document.createElement("input");
+      labelInput.type = "text";
+      valueInput.type = "text";
+      labelInput.value = row.label;
+      valueInput.value = row.value;
+      labelInput.setAttribute("aria-label", `Notes label ${String(index + 1)}`);
+      valueInput.setAttribute("aria-label", `Notes value ${String(index + 1)}`);
+      labelInput.addEventListener("input", () => {
+        notesRows = updateNotesRow(notesRows, index, { label: labelInput.value });
+      });
+      valueInput.addEventListener("input", () => {
+        notesRows = updateNotesRow(notesRows, index, { value: valueInput.value });
+      });
+      labelTd.append(labelInput);
+      valueTd.append(valueInput);
+      tr.append(labelTd, valueTd);
+      notesBody.append(tr);
+    });
+  }
+
+  function switchBottomTab(tab: "aggregate" | "notes"): void {
+    bottomTabs = selectBottomTab(bottomTabs, tab);
+    applyBottomTabUi();
+    if (bottomTabs.active === "aggregate") {
+      // Restore Aggregate paint; Notes stay in memory via notesRows.
+      repaintAll();
+    } else {
+      renderNotesTable();
+    }
+    status.textContent = `${workspaceLayout.name} · ${String(dims.rows)} loans · bottom tab ${bottomTabs.active}`;
+  }
+
+  tabAggregate.addEventListener("click", () => {
+    switchBottomTab("aggregate");
+  });
+  tabNotes.addEventListener("click", () => {
+    switchBottomTab("notes");
+  });
+  bottomAddRow.addEventListener("click", () => {
+    const target = bottomControlTarget(bottomTabs);
+    if (target === "notes") {
+      notesRows = addNotesRow(notesRows);
+      renderNotesTable();
+      return;
+    }
+    // Aggregate add-row: grow an empty Aggregate row (engine-backed).
+    const nextRow = bottomUi.paintBase.rows;
+    bottomUi.grid.set_cell(nextRow, 0, "");
+    bottomUi.paintBase = {
+      ...bottomUi.paintBase,
+      rows: nextRow + 1,
+    };
+    bottomUi.bounds = {
+      rows: bottomUi.paintBase.rows,
+      cols: bottomUi.paintBase.cols,
+    };
+    if (bottomUi.selection === null) {
+      bottomUi.selection = { row: nextRow, col: 0 };
+    }
+    syncFormulaBar(bottomUi);
+    repaintAll();
+  });
+
+  applyBottomTabUi();
+  renderNotesTable();
   repaintAll();
   mainUi.canvas.focus();
 }

@@ -39,6 +39,20 @@ export {
   type WorkspaceRegion,
 } from "./region.js";
 export {
+  addNotesRow,
+  createNotesRows,
+  updateNotesRow,
+  type NotesRow,
+} from "./notes.js";
+export {
+  bottomControlTarget,
+  createBottomTabState,
+  isBottomTabActive,
+  selectBottomTab,
+  type BottomTabId,
+  type BottomTabState,
+} from "./tabs.js";
+export {
   clampSelection,
   hitTestDataCell,
   isSelectionNavKey,

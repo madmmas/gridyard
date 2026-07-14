@@ -3,28 +3,49 @@
 //! Kept free of `wasm-bindgen` so `cargo test` exercises the same wiring
 //! the JS API uses.
 
-use gridyard_core::{cell_id, Value};
+use gridyard_core::{cell_id, CellId, Value};
 use gridyard_graph::SheetEngine;
+use gridyard_grid::{CellEditCommand, UndoStack};
 
-/// Thin facade over [`SheetEngine`] using `(row, col)` coordinates.
+/// Thin facade over [`SheetEngine`] using `(row, col)` coordinates,
+/// with a bounded single-cell undo/redo stack.
 #[derive(Debug, Default)]
 pub struct GridHandle {
     engine: SheetEngine,
+    history: UndoStack,
 }
 
 impl GridHandle {
-    /// Creates an empty grid.
+    /// Creates an empty grid with default undo depth
+    /// ([`gridyard_grid::DEFAULT_UNDO_LIMIT`]).
     pub fn new() -> Self {
         Self {
             engine: SheetEngine::new(),
+            history: UndoStack::new(),
         }
     }
 
-    /// Sets the cell at `(row, col)` from user input and recalculates.
+    /// Creates a grid whose undo stack keeps at most `limit` entries.
+    pub fn with_undo_limit(limit: usize) -> Self {
+        Self {
+            engine: SheetEngine::new(),
+            history: UndoStack::with_limit(limit),
+        }
+    }
+
+    /// Sets the cell at `(row, col)` from user input, recalculates, and
+    /// records an undo step when the stored input actually changes.
     pub fn set_cell(&mut self, row: u32, col: u32, input: &str) -> Result<(), String> {
-        self.engine
-            .set_cell(cell_id(row, col), input)
-            .map_err(|e| e.to_string())
+        let id = cell_id(row, col);
+        let old_input = self.engine.get_input(id);
+        self.apply_input(id, input)?;
+        let new_input = self.engine.get_input(id);
+        self.history.push(CellEditCommand {
+            cell: id,
+            old_input,
+            new_input,
+        });
+        Ok(())
     }
 
     /// Returns the computed value at `(row, col)`.
@@ -35,6 +56,50 @@ impl GridHandle {
     /// Returns the raw user input at `(row, col)` (literal or `=formula`).
     pub fn get_input(&self, row: u32, col: u32) -> String {
         self.engine.get_input(cell_id(row, col))
+    }
+
+    /// Reverts the most recent recorded edit and recalculates dependents.
+    ///
+    /// Returns `true` when a command was applied.
+    pub fn undo(&mut self) -> bool {
+        let Some(command) = self.history.undo() else {
+            return false;
+        };
+        let _ = self.apply_input(command.cell, &command.old_input);
+        true
+    }
+
+    /// Re-applies the most recently undone edit and recalculates dependents.
+    ///
+    /// Returns `true` when a command was applied.
+    pub fn redo(&mut self) -> bool {
+        let Some(command) = self.history.redo() else {
+            return false;
+        };
+        let _ = self.apply_input(command.cell, &command.new_input);
+        true
+    }
+
+    /// Returns `true` when [`Self::undo`] would change the sheet.
+    pub fn can_undo(&self) -> bool {
+        self.history.can_undo()
+    }
+
+    /// Returns `true` when [`Self::redo`] would change the sheet.
+    pub fn can_redo(&self) -> bool {
+        self.history.can_redo()
+    }
+
+    /// Drops undo/redo history without changing cell values.
+    ///
+    /// Useful after seeding fixture data so the user cannot undo into
+    /// the initial load.
+    pub fn clear_history(&mut self) {
+        self.history.clear();
+    }
+
+    fn apply_input(&mut self, id: CellId, input: &str) -> Result<(), String> {
+        self.engine.set_cell(id, input).map_err(|e| e.to_string())
     }
 }
 
@@ -87,5 +152,64 @@ mod tests {
         grid.set_cell(0, 1, "=A1").expect("B1");
         assert_eq!(grid.get_cell(0, 0), Value::Error(ErrorKind::Circular));
         assert_eq!(grid.get_cell(0, 1), Value::Error(ErrorKind::Circular));
+    }
+
+    #[test]
+    fn undo_reverts_edit_and_recalculates_dependents() {
+        let mut grid = GridHandle::new();
+        grid.set_cell(0, 0, "1").expect("A1");
+        grid.set_cell(0, 1, "=A1+1").expect("B1");
+        grid.set_cell(0, 0, "10").expect("A1 edit");
+        assert_eq!(grid.get_cell(0, 1), Value::Number(11.0));
+
+        assert!(grid.undo());
+        assert_eq!(grid.get_input(0, 0), "1");
+        assert_eq!(grid.get_cell(0, 1), Value::Number(2.0));
+    }
+
+    #[test]
+    fn redo_reapplies_undone_edit() {
+        let mut grid = GridHandle::new();
+        grid.set_cell(0, 0, "1").expect("A1");
+        grid.set_cell(0, 0, "5").expect("A1 edit");
+        assert!(grid.undo());
+        assert_eq!(grid.get_input(0, 0), "1");
+        assert!(grid.redo());
+        assert_eq!(grid.get_input(0, 0), "5");
+    }
+
+    #[test]
+    fn new_edit_after_undo_clears_redo() {
+        let mut grid = GridHandle::new();
+        grid.set_cell(0, 0, "1").expect("A1");
+        grid.set_cell(0, 0, "2").expect("A1→2");
+        assert!(grid.undo());
+        assert!(grid.can_redo());
+        grid.set_cell(0, 0, "9").expect("A1→9");
+        assert!(!grid.can_redo());
+        assert!(grid.undo());
+        assert_eq!(grid.get_input(0, 0), "1");
+    }
+
+    #[test]
+    fn history_is_bounded() {
+        let mut grid = GridHandle::with_undo_limit(2);
+        grid.set_cell(0, 0, "1").expect("1");
+        grid.set_cell(0, 0, "2").expect("2");
+        grid.set_cell(0, 0, "3").expect("3");
+        assert!(grid.undo());
+        assert_eq!(grid.get_input(0, 0), "2");
+        assert!(grid.undo());
+        assert_eq!(grid.get_input(0, 0), "1");
+        assert!(!grid.undo());
+    }
+
+    #[test]
+    fn clear_history_keeps_values() {
+        let mut grid = GridHandle::new();
+        grid.set_cell(0, 0, "1").expect("A1");
+        grid.clear_history();
+        assert!(!grid.can_undo());
+        assert_eq!(grid.get_input(0, 0), "1");
     }
 }

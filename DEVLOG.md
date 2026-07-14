@@ -26,6 +26,11 @@ tried and abandoned — that's the whole point of this file existing.
   follow-up. Unit paint isolation checked against a **5 000-row** virtual
   viewport.
 
+- Batch 04 §21: Employee Management workspace fixture + permissions sample
+  user; `loadWorkspaceMain` generalizes the Loan-only loader; demo workspace
+  switcher reloads without a page refresh. Stacked on form engine (§20) so the
+  employee `form.sections` parse path stays shared.
+
 - Batch 04 §20 (`@gridyard/workspace-runtime` + web-demo): form engine
   (`buildFormView` + optional `form.sections`) with Loan Review Customer /
   Additional Information sections; demo form panel mirrors selected row and

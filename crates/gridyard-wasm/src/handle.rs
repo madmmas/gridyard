@@ -4,7 +4,7 @@
 //! the JS API uses.
 
 use gridyard_core::{cell_id, CellId, Value};
-use gridyard_graph::SheetEngine;
+use gridyard_graph::{Region, SheetEngine, WorkspaceEngine};
 use gridyard_grid::{CellEditCommand, UndoStack};
 
 /// Thin facade over [`SheetEngine`] using `(row, col)` coordinates,
@@ -101,6 +101,54 @@ impl GridHandle {
     fn apply_input(&mut self, id: CellId, input: &str) -> Result<(), String> {
         self.engine.set_cell(id, input).map_err(|e| e.to_string())
     }
+}
+
+/// Thin facade over [`WorkspaceEngine`] with region-addressed `(row, col)`.
+///
+/// Region names are `"main"` and `"bottom"` (case-insensitive). Cross-region
+/// formulas like `=main!A1` are evaluated by the underlying workspace engine.
+#[derive(Debug, Default)]
+pub struct WorkspaceHandle {
+    engine: WorkspaceEngine,
+}
+
+impl WorkspaceHandle {
+    /// Creates an empty two-region workspace (`main` + `bottom`).
+    pub fn new() -> Self {
+        Self {
+            engine: WorkspaceEngine::new(),
+        }
+    }
+
+    /// Sets a cell in `region` from a literal or `=formula`.
+    pub fn set_cell(
+        &mut self,
+        region: &str,
+        row: u32,
+        col: u32,
+        input: &str,
+    ) -> Result<(), String> {
+        let region = parse_region(region)?;
+        self.engine
+            .set_cell(region, cell_id(row, col), input)
+            .map_err(|e| e.to_string())
+    }
+
+    /// Returns the computed value at `(region, row, col)`.
+    pub fn get_cell(&self, region: &str, row: u32, col: u32) -> Result<Value, String> {
+        let region = parse_region(region)?;
+        Ok(self.engine.get_value(region, cell_id(row, col)))
+    }
+
+    /// Returns the raw user input at `(region, row, col)`.
+    pub fn get_input(&self, region: &str, row: u32, col: u32) -> Result<String, String> {
+        let region = parse_region(region)?;
+        Ok(self.engine.get_input(region, cell_id(row, col)))
+    }
+}
+
+fn parse_region(name: &str) -> Result<Region, String> {
+    Region::from_name(name).ok_or_else(|| format!("unknown region `{name}`"))
 }
 
 #[cfg(test)]
@@ -211,5 +259,45 @@ mod tests {
         grid.clear_history();
         assert!(!grid.can_undo());
         assert_eq!(grid.get_input(0, 0), "1");
+    }
+
+    #[test]
+    fn workspace_cross_region_set_get_and_propagate() {
+        let mut ws = WorkspaceHandle::new();
+        ws.set_cell("main", 0, 0, "10").expect("main A1");
+        ws.set_cell("bottom", 0, 0, "=main!A1*2")
+            .expect("bottom A1");
+        assert_eq!(ws.get_cell("bottom", 0, 0).unwrap(), Value::Number(20.0));
+
+        ws.set_cell("main", 0, 0, "7").expect("main A1 update");
+        assert_eq!(ws.get_cell("bottom", 0, 0).unwrap(), Value::Number(14.0));
+        assert_eq!(ws.get_input("bottom", 0, 0).unwrap(), "=main!A1*2");
+    }
+
+    #[test]
+    fn workspace_sum_over_main_range() {
+        let mut ws = WorkspaceHandle::new();
+        ws.set_cell("main", 1, 1, "1").expect("B2");
+        ws.set_cell("main", 2, 1, "2").expect("B3");
+        ws.set_cell("main", 3, 1, "3").expect("B4");
+        ws.set_cell("bottom", 0, 1, "=SUM(main!B2:B4)")
+            .expect("bottom B1");
+        assert_eq!(ws.get_cell("bottom", 0, 1).unwrap(), Value::Number(6.0));
+    }
+
+    #[test]
+    fn workspace_rejects_unknown_region() {
+        let mut ws = WorkspaceHandle::new();
+        let err = ws.set_cell("side", 0, 0, "1").expect_err("unknown");
+        assert!(err.contains("unknown region"), "{err}");
+        assert!(ws.get_cell("side", 0, 0).is_err());
+    }
+
+    #[test]
+    fn workspace_region_names_are_case_insensitive() {
+        let mut ws = WorkspaceHandle::new();
+        ws.set_cell("MAIN", 0, 0, "4").expect("MAIN");
+        ws.set_cell("Bottom", 0, 0, "=main!A1").expect("Bottom");
+        assert_eq!(ws.get_cell("BOTTOM", 0, 0).unwrap(), Value::Number(4.0));
     }
 }

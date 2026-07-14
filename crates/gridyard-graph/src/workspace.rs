@@ -27,7 +27,8 @@ impl Region {
         }
     }
 
-    fn parse(name: &str) -> Option<Self> {
+    /// Parses a region name (`main` / `bottom`, case-insensitive).
+    pub fn from_name(name: &str) -> Option<Self> {
         if name.eq_ignore_ascii_case("main") {
             Some(Region::Main)
         } else if name.eq_ignore_ascii_case("bottom") {
@@ -103,7 +104,7 @@ impl WorkspaceEngine {
 }
 
 fn resolve_from_main(main: &SheetEngine, region: &str, cell: CellId) -> Value {
-    match Region::parse(region) {
+    match Region::from_name(region) {
         Some(Region::Main) => main.get_value(cell),
         // Bottom→bottom external refs and unknown regions are not wired.
         Some(Region::Bottom) | None => Value::Error(ErrorKind::Ref),

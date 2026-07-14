@@ -11,6 +11,10 @@ tried and abandoned — that's the whole point of this file existing.
 
 ## 2026-07-14
 
+- Batch 04 §23 (`@gridyard/grid-renderer`): `createPaintScheduler()` coalesces
+  per-region paints onto the next animation frame so cascading dirties run one
+  paint per region per frame (last paint fn wins). Stacked on §22 virtualization.
+
 - Batch 04 §22 (`@gridyard/grid-renderer`): viewport row virtualization
   (`visibleRowRange` + `paintStaticGrid({ viewport })`). Horizontal
   virtualization skipped (few columns). Demo scroll-host wiring left as

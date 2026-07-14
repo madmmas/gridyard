@@ -53,6 +53,22 @@ pub enum Expr {
         /// End corner of the range.
         end: CellId,
     },
+    /// Cross-region cell reference (`main!A1`).
+    ExternalCellRef {
+        /// Region / sheet name as written (letter case preserved).
+        region: String,
+        /// Cell within that region.
+        cell: CellId,
+    },
+    /// Cross-region inclusive range (`main!B2:B8`).
+    ExternalRange {
+        /// Region / sheet name as written (letter case preserved).
+        region: String,
+        /// Start corner of the range.
+        start: CellId,
+        /// End corner of the range.
+        end: CellId,
+    },
     /// Function call (`SUM(1, 2)`).
     Call {
         /// Function name as written (letter case preserved).
@@ -118,6 +134,12 @@ impl Ast {
             Expr::CellRef(cell) => format_cell(*cell),
             Expr::Range { start, end } => {
                 format!("{}:{}", format_cell(*start), format_cell(*end))
+            }
+            Expr::ExternalCellRef { region, cell } => {
+                format!("{region}!{}", format_cell(*cell))
+            }
+            Expr::ExternalRange { region, start, end } => {
+                format!("{region}!{}:{}", format_cell(*start), format_cell(*end))
             }
             Expr::Call { name, args } => {
                 let joined = args

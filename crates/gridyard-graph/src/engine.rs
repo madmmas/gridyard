@@ -1,18 +1,28 @@
 //! Sheet engine: sparse grid + formulas + incremental recalculation.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use gridyard_core::{cell_id, Cell, CellId, ErrorKind, SparseGrid, Value, DEFAULT_STYLE_ID};
-use gridyard_formula::{evaluate_with_cells, parse_formula, Ast, EvalEnv, ParseError};
+use gridyard_formula::{
+    evaluate_with_resolvers, parse_formula, Ast, EvalEnv, ExternalRef, ParseError,
+};
 
 use crate::dep_graph::DepGraph;
 
 /// Coordinates a sparse grid, formula ASTs, and the dependency graph.
+///
+/// Same-region precedents live in [`DepGraph`]. Cross-region reads
+/// (`main!A1`) are tracked separately so another region's engine can stay
+/// independent — see [`SheetEngine::propagate_external_changes`].
 #[derive(Debug, Default)]
 pub struct SheetEngine {
     grid: SparseGrid,
     formulas: HashMap<CellId, Ast>,
     graph: DepGraph,
+    /// `dependent → external cells it reads`.
+    external_precedents: HashMap<CellId, HashSet<ExternalRef>>,
+    /// `external cell → local dependents that read it`.
+    external_dependents: HashMap<ExternalRef, HashSet<CellId>>,
     /// Last successful recalculation order (for tests / debugging).
     last_order: Vec<CellId>,
 }
@@ -25,37 +35,88 @@ impl SheetEngine {
 
     /// Sets a cell from user input and incrementally recalculates dependents.
     ///
-    /// Inputs starting with `=` are parsed as formulas; anything else is a
-    /// literal (number, bool, or text). Unparseable formulas are stored with
-    /// [`Value::Error`]([`ErrorKind::Value`]) so callers can show an error
-    /// cell without rejecting the edit.
+    /// Cross-region refs resolve to [`ErrorKind::Ref`] (no external sheet).
+    /// Prefer [`SheetEngine::set_cell_with_external`] when a peer region is
+    /// available.
     pub fn set_cell(&mut self, id: CellId, input: &str) -> Result<(), ParseError> {
+        self.set_cell_with_external(id, input, |_, _| Value::Error(ErrorKind::Ref))
+    }
+
+    /// Like [`SheetEngine::set_cell`], but resolves cross-region refs via
+    /// `get_external(region, cell)`.
+    pub fn set_cell_with_external<F>(
+        &mut self,
+        id: CellId,
+        input: &str,
+        get_external: F,
+    ) -> Result<(), ParseError>
+    where
+        F: Fn(&str, CellId) -> Value,
+    {
         let trimmed = input.trim();
         if let Some(formula) = trimmed.strip_prefix('=') {
             match parse_formula(formula) {
                 Ok(ast) => {
                     let precedents = ast.referenced_cells();
+                    let external = ast.referenced_external_cells();
                     self.formulas.insert(id, ast);
                     self.graph.set_precedents(id, precedents);
+                    self.set_external_precedents(id, external);
                     // Placeholder until recalc fills the computed value.
                     self.write_cell(id, trimmed.to_string(), Value::Empty);
                 }
                 Err(_) => {
                     self.formulas.remove(&id);
                     self.graph.clear_precedents(id);
+                    self.clear_external_precedents(id);
                     self.write_cell(id, trimmed.to_string(), Value::Error(ErrorKind::Value));
                 }
             }
         } else {
             self.formulas.remove(&id);
             self.graph.clear_precedents(id);
+            self.clear_external_precedents(id);
             let value = parse_literal(trimmed);
             self.write_cell(id, trimmed.to_string(), value);
         }
 
         self.graph.mark_dirty(id);
-        self.recalculate();
+        self.recalculate_with(get_external);
         Ok(())
+    }
+
+    /// Marks local cells that read `region!cell` dirty for each `cell` in
+    /// `changed`, then recalculates with `get_external`.
+    ///
+    /// Used when a peer region edits cells this sheet reads. Does nothing
+    /// when no local formula depends on the changed external cells.
+    pub fn propagate_external_changes<F>(
+        &mut self,
+        region: &str,
+        changed: &[CellId],
+        get_external: F,
+    ) where
+        F: Fn(&str, CellId) -> Value,
+    {
+        let region = region.to_ascii_lowercase();
+        let mut any = false;
+        for &cell in changed {
+            let key = ExternalRef {
+                region: region.clone(),
+                cell,
+            };
+            if let Some(deps) = self.external_dependents.get(&key) {
+                for &dep in deps {
+                    self.graph.mark_dirty(dep);
+                    any = true;
+                }
+            }
+        }
+        if any {
+            self.recalculate_with(get_external);
+        } else {
+            self.last_order.clear();
+        }
     }
 
     /// Returns the computed value for `id`, or [`Value::Empty`] if absent.
@@ -79,12 +140,43 @@ impl SheetEngine {
         &self.last_order
     }
 
-    fn recalculate(&mut self) {
+    fn set_external_precedents(&mut self, cell: CellId, refs: Vec<ExternalRef>) {
+        self.clear_external_precedents(cell);
+        if refs.is_empty() {
+            return;
+        }
+        let set: HashSet<ExternalRef> = refs.into_iter().collect();
+        for ext in &set {
+            self.external_dependents
+                .entry(ext.clone())
+                .or_default()
+                .insert(cell);
+        }
+        self.external_precedents.insert(cell, set);
+    }
+
+    fn clear_external_precedents(&mut self, cell: CellId) {
+        if let Some(old) = self.external_precedents.remove(&cell) {
+            for ext in old {
+                if let Some(deps) = self.external_dependents.get_mut(&ext) {
+                    deps.remove(&cell);
+                    if deps.is_empty() {
+                        self.external_dependents.remove(&ext);
+                    }
+                }
+            }
+        }
+    }
+
+    fn recalculate_with<F>(&mut self, get_external: F)
+    where
+        F: Fn(&str, CellId) -> Value,
+    {
         match self.graph.take_dirty_order() {
             Ok(order) => {
                 self.last_order = order.clone();
                 for id in order {
-                    self.recalc_one(id);
+                    self.recalc_one(id, &get_external);
                 }
             }
             Err(cyclic) => {
@@ -96,17 +188,25 @@ impl SheetEngine {
         }
     }
 
-    fn recalc_one(&mut self, id: CellId) {
+    fn recalc_one<F>(&mut self, id: CellId, get_external: &F)
+    where
+        F: Fn(&str, CellId) -> Value,
+    {
         let Some(ast) = self.formulas.get(&id).cloned() else {
             return;
         };
         let value = {
             let grid = &self.grid;
-            evaluate_with_cells(&ast, &EvalEnv::default(), |cid| {
-                grid.get_cell(cid)
-                    .map(|c| c.value.clone())
-                    .unwrap_or(Value::Empty)
-            })
+            evaluate_with_resolvers(
+                &ast,
+                &EvalEnv::default(),
+                |cid| {
+                    grid.get_cell(cid)
+                        .map(|c| c.value.clone())
+                        .unwrap_or(Value::Empty)
+                },
+                |region, cell| get_external(region, cell),
+            )
         };
         self.set_value_only(id, value);
     }
@@ -252,5 +352,12 @@ mod tests {
         eng.set_cell(a1("A1"), "=1+").unwrap();
         assert_eq!(eng.get_input(a1("A1")), "=1+");
         assert_eq!(eng.get_value(a1("A1")), Value::Error(ErrorKind::Value));
+    }
+
+    #[test]
+    fn standalone_external_ref_is_ref_error() {
+        let mut eng = SheetEngine::new();
+        eng.set_cell(a1("A1"), "=main!B1").unwrap();
+        assert_eq!(eng.get_value(a1("A1")), Value::Error(ErrorKind::Ref));
     }
 }

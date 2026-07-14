@@ -6,6 +6,7 @@
 //! term    = unary (("*" | "/") unary)*
 //! unary   = ("+" | "-") unary | primary
 //! primary = number | string | bool | call | cell_ref
+//!         | region "!" cell_ref | region "!" cell_ref ":" cell_ref
 //!         | cell_ref ":" cell_ref | "(" expr ")"
 //! call    = ident "(" [expr ("," expr)*] ")"
 //! ```
@@ -130,6 +131,10 @@ impl<'a> Parser<'a> {
                     return self.parse_call_args(name);
                 }
 
+                if matches!(self.peek().kind, TokenKind::Bang) {
+                    return self.parse_external_ref(name);
+                }
+
                 if name.eq_ignore_ascii_case("TRUE") {
                     return Ok(self.push(Expr::Bool(true)));
                 }
@@ -176,6 +181,51 @@ impl<'a> Parser<'a> {
             }
             TokenKind::Eof => Err(ParseError::new(tok.start, "unexpected end of formula")),
             _ => Err(ParseError::new(tok.start, "unexpected token in expression")),
+        }
+    }
+
+    fn parse_external_ref(&mut self, region: String) -> Result<NodeId, ParseError> {
+        let bang = self.bump();
+        debug_assert!(matches!(bang.kind, TokenKind::Bang));
+
+        let cell_tok = self.peek();
+        let TokenKind::Ident(cell_name) = &cell_tok.kind else {
+            return Err(ParseError::new(
+                cell_tok.start,
+                "expected cell reference after `!`",
+            ));
+        };
+        let cell_pos = cell_tok.start;
+        let cell_name = cell_name.clone();
+        self.bump();
+        let (row, col) = parse_a1(&cell_name, cell_pos)?;
+        let start_id = cell_id(row, col);
+
+        if matches!(self.peek().kind, TokenKind::Colon) {
+            self.bump();
+            let end_tok = self.peek();
+            match &end_tok.kind {
+                TokenKind::Ident(end_name) => {
+                    let end_pos = end_tok.start;
+                    let end_name = end_name.clone();
+                    self.bump();
+                    let (end_row, end_col) = parse_a1(&end_name, end_pos)?;
+                    Ok(self.push(Expr::ExternalRange {
+                        region,
+                        start: start_id,
+                        end: cell_id(end_row, end_col),
+                    }))
+                }
+                _ => Err(ParseError::new(
+                    end_tok.start,
+                    "expected cell reference after `:`",
+                )),
+            }
+        } else {
+            Ok(self.push(Expr::ExternalCellRef {
+                region,
+                cell: start_id,
+            }))
         }
     }
 
@@ -311,5 +361,30 @@ mod tests {
             assert_eq!(err.position, position, "src=`{src}`, err={err}");
             assert!(!err.message.is_empty());
         }
+    }
+
+    #[test]
+    fn parses_cross_region_refs_and_ranges() {
+        let cell = parse_formula("main!A1").unwrap();
+        match cell.node(cell.root()) {
+            Expr::ExternalCellRef { region, cell } => {
+                assert_eq!(region, "main");
+                assert_eq!(*cell, cell_id(0, 0));
+            }
+            other => panic!("expected ExternalCellRef, got {other:?}"),
+        }
+
+        let range = parse_formula("main!B2:B8").unwrap();
+        match range.node(range.root()) {
+            Expr::ExternalRange { region, start, end } => {
+                assert_eq!(region, "main");
+                assert_eq!(*start, cell_id(1, 1));
+                assert_eq!(*end, cell_id(7, 1));
+            }
+            other => panic!("expected ExternalRange, got {other:?}"),
+        }
+
+        let sum = parse_formula("SUM(main!B2:B8)").unwrap();
+        assert_eq!(sum.parenthesized(), "SUM(main!r1c1:r7c1)");
     }
 }

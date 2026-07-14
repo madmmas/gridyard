@@ -38,6 +38,8 @@ pub enum TokenKind {
     Comma,
     /// `:` (range separator)
     Colon,
+    /// `!` (region / sheet qualifier, e.g. `main!A1`)
+    Bang,
     /// End of input.
     Eof,
 }
@@ -87,6 +89,10 @@ pub fn lex(source: &str) -> Result<Vec<Token>, ParseError> {
             b':' => {
                 i += 1;
                 TokenKind::Colon
+            }
+            b'!' => {
+                i += 1;
+                TokenKind::Bang
             }
             b'"' => {
                 let (s, next) = lex_string(source, i)?;
@@ -249,5 +255,14 @@ mod tests {
         let err = lex("1 & 2").expect_err("expected error");
         assert_eq!(err.position, 2);
         assert!(err.message.contains("unexpected character"));
+    }
+
+    #[test]
+    fn lexes_region_bang_refs() {
+        let tokens = lex("main!A1").expect("lex");
+        assert!(matches!(tokens[0].kind, TokenKind::Ident(ref s) if s == "main"));
+        assert!(matches!(tokens[1].kind, TokenKind::Bang));
+        assert!(matches!(tokens[2].kind, TokenKind::Ident(ref s) if s == "A1"));
+        assert!(matches!(tokens[3].kind, TokenKind::Eof));
     }
 }

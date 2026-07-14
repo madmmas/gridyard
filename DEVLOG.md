@@ -11,6 +11,11 @@ tried and abandoned — that's the whole point of this file existing.
 
 ## 2026-07-14
 
+- Batch 04 §22 (`@gridyard/grid-renderer`): viewport row virtualization
+  (`visibleRowRange` + `paintStaticGrid({ viewport })`). Horizontal
+  virtualization skipped (few columns). Demo scroll-host wiring left as
+  follow-up. Unit paint isolation checked against a **5 000-row** virtual
+  viewport.
 - Batch 04 §19 (`@gridyard/workspace-runtime` + `@gridyard/grid-renderer`):
   `projectColumnsForPermissions` / `authorizeFieldEdit` + column remapping and
   `commitEditWithAccess`. Sample Loan Review users in

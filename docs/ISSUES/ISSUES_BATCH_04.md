@@ -23,7 +23,7 @@ generalizes or just happens to work for one dataset.
 | 19 | [#45](https://github.com/madmmas/gridyard/issues/45) | Enforce permission-engine output in the UI | (this PR) |
 | 20 | [#49](https://github.com/madmmas/gridyard/issues/49) | Form engine — render bound data as a structured form | — |
 | 21 | [#50](https://github.com/madmmas/gridyard/issues/50) | Second example domain — Employee Management | — |
-| 22 | [#46](https://github.com/madmmas/gridyard/issues/46) | Virtual rendering for large grids | — |
+| 22 | [#46](https://github.com/madmmas/gridyard/issues/46) | Virtual rendering for large grids | (this PR) |
 | 23 | [#47](https://github.com/madmmas/gridyard/issues/47) | requestAnimationFrame batching for repaints | — |
 | 24 | [#48](https://github.com/madmmas/gridyard/issues/48) | Search UI | — |
 
@@ -132,6 +132,8 @@ dataset's assumptions. `apps/mock-server/db.json` already has an
 None yet.
 
 ## 22. [grid-renderer] Virtual rendering for large grids
+
+**Status:** done — issue [#46](https://github.com/madmmas/gridyard/issues/46)
 
 ### Spec reference
 `docs/02-rendering-layer-spec.md` — virtual rendering.

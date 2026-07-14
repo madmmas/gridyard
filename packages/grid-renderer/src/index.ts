@@ -2,8 +2,9 @@
 //
 // Paints fixed-size main / bottom Aggregate regions (ref row, name row,
 // row gutter, cell values) from a `gridyard-wasm`-compatible source, with
-// selection, keyboard navigation, and permission-aware edit/commit. Bottom
-// column widths sync from main via `computeBottomLayoutFromMain`.
+// selection, keyboard navigation, permission-aware edit/commit, and
+// viewport row virtualization. Bottom column widths sync from main via
+// `computeBottomLayoutFromMain`.
 
 export { colIndexToLetters, rowIndexToLabel } from "./address.js";
 export { formatCellValue } from "./format.js";
@@ -21,6 +22,7 @@ export {
   paintStaticGrid,
   type GridRegionChrome,
   type PaintStaticGridOptions,
+  type PaintViewport,
 } from "./render.js";
 export {
   asEditableGrid,
@@ -70,3 +72,12 @@ export {
 } from "./selection.js";
 export { asGridDataSource } from "./source.js";
 export type { CellJsValue, GridDataSource } from "./types.js";
+
+export {
+  clampScrollTop,
+  scrollTopToRevealRow,
+  viewportBodyHeight,
+  visibleRowRange,
+  type VisibleRowRange,
+  type VisibleRowRangeInput,
+} from "./viewport.js";

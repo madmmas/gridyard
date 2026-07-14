@@ -3,6 +3,9 @@ import type {
   BottomRegionDefinition,
   FieldDefinition,
   FieldType,
+  FormDefinition,
+  FormSectionDefinition,
+  FormSectionLayout,
   LayoutColumn,
   MainRegionDefinition,
   NotesTabDefinition,
@@ -71,12 +74,19 @@ export function parseWorkspaceDefinition(input: unknown): ParseWorkspaceResult {
 
   const main = parseMainRegion(regionsRaw["main"], errors);
   const bottom = parseBottomRegion(regionsRaw["bottom"], errors);
+  const form =
+    input["form"] === undefined
+      ? undefined
+      : parseFormDefinition(input["form"], errors);
 
   if (errors.length > 0 || main === null || bottom === null || id === null || name === null) {
     return { ok: false, errors };
   }
 
   validateAggregateSync(main, bottom, errors);
+  if (form !== undefined && form !== null) {
+    validateFormFields(main, form, errors);
+  }
   if (errors.length > 0) {
     return { ok: false, errors };
   }
@@ -85,6 +95,7 @@ export function parseWorkspaceDefinition(input: unknown): ParseWorkspaceResult {
     id,
     name,
     regions: { main, bottom },
+    ...(form !== undefined && form !== null ? { form } : {}),
   };
 
   return { ok: true, layout: toLayout(definition) };
@@ -372,6 +383,134 @@ function parseFieldList(
  * Aggregate columns must reference main fields 1:1 in the same order
  * (docs/04: same letters/names, column widths locked to main).
  */
+function parseFormDefinition(
+  raw: unknown,
+  errors: WorkspaceSchemaError[],
+): FormDefinition | null {
+  const path = "form";
+  if (!isRecord(raw)) {
+    errors.push({
+      path,
+      code: "invalid_form",
+      message: "form must be an object with sections",
+    });
+    return null;
+  }
+
+  const sectionsRaw = raw["sections"];
+  if (!Array.isArray(sectionsRaw)) {
+    errors.push({
+      path: `${path}.sections`,
+      code: "missing_sections",
+      message: "form.sections must be an array of section definitions",
+    });
+    return null;
+  }
+  if (sectionsRaw.length === 0) {
+    errors.push({
+      path: `${path}.sections`,
+      code: "empty_sections",
+      message: "form.sections must contain at least one section",
+    });
+    return null;
+  }
+
+  const sections: FormSectionDefinition[] = [];
+  for (let i = 0; i < sectionsRaw.length; i += 1) {
+    const sectionPath = `${path}.sections[${String(i)}]`;
+    const item: unknown = sectionsRaw[i];
+    if (!isRecord(item)) {
+      errors.push({
+        path: sectionPath,
+        code: "invalid_section",
+        message: "form section must be an object",
+      });
+      continue;
+    }
+    const sectionId = requireStringAt(item, `${sectionPath}.id`, "id", errors);
+    const title = requireStringAt(item, `${sectionPath}.title`, "title", errors);
+    const fieldIdsRaw = item["fieldIds"];
+    if (!Array.isArray(fieldIdsRaw)) {
+      errors.push({
+        path: `${sectionPath}.fieldIds`,
+        code: "missing_field_ids",
+        message: "section.fieldIds must be an array of main field ids",
+      });
+      continue;
+    }
+    if (fieldIdsRaw.length === 0) {
+      errors.push({
+        path: `${sectionPath}.fieldIds`,
+        code: "empty_field_ids",
+        message: "section.fieldIds must contain at least one field id",
+      });
+      continue;
+    }
+    const fieldIds: string[] = [];
+    for (let j = 0; j < fieldIdsRaw.length; j += 1) {
+      const idPath = `${sectionPath}.fieldIds[${String(j)}]`;
+      const fieldId: unknown = fieldIdsRaw[j];
+      if (typeof fieldId !== "string" || fieldId.trim() === "") {
+        errors.push({
+          path: idPath,
+          code: "missing_string",
+          message: `${idPath} must be a non-empty string`,
+        });
+        continue;
+      }
+      fieldIds.push(fieldId);
+    }
+    if (sectionId !== null && title !== null && fieldIds.length > 0) {
+      sections.push({ id: sectionId, title, fieldIds });
+    }
+  }
+
+  if (sections.length === 0) {
+    return null;
+  }
+  return { sections };
+}
+
+function validateFormFields(
+  main: MainRegionDefinition,
+  form: FormDefinition,
+  errors: WorkspaceSchemaError[],
+): void {
+  const mainIds = new Set(main.fields.map((f) => f.id));
+  const seen = new Map<string, string>();
+  for (let s = 0; s < form.sections.length; s += 1) {
+    const section = form.sections[s];
+    if (section === undefined) {
+      continue;
+    }
+    for (let f = 0; f < section.fieldIds.length; f += 1) {
+      const fieldId = section.fieldIds[f];
+      if (fieldId === undefined) {
+        continue;
+      }
+      const path = `form.sections[${String(s)}].fieldIds[${String(f)}]`;
+      if (!mainIds.has(fieldId)) {
+        errors.push({
+          path,
+          code: "unknown_form_field",
+          message: `form field "${fieldId}" does not exist on regions.main.fields`,
+        });
+        continue;
+      }
+      const prev = seen.get(fieldId);
+      if (prev !== undefined) {
+        errors.push({
+          path,
+          code: "duplicate_form_field",
+          message: `form field "${fieldId}" already appears in ${prev}`,
+        });
+      } else {
+        seen.set(fieldId, path);
+      }
+    }
+  }
+}
+
 function validateAggregateSync(
   main: MainRegionDefinition,
   bottom: BottomRegionDefinition,
@@ -435,6 +574,22 @@ function toLayout(definition: WorkspaceDefinition): WorkspaceLayout {
     syncedFromMain: true as const,
   }));
 
+  const columnById = new Map(
+    mainColumns.map((column) => [column.fieldId, column] as const),
+  );
+
+  let formSections: FormSectionLayout[] | undefined;
+  if (definition.form !== undefined) {
+    formSections = definition.form.sections.map((section) => ({
+      id: section.id,
+      title: section.title,
+      fields: section.fieldIds.flatMap((fieldId) => {
+        const column = columnById.get(fieldId);
+        return column === undefined ? [] : [column];
+      }),
+    }));
+  }
+
   return {
     id: definition.id,
     name: definition.name,
@@ -447,6 +602,7 @@ function toLayout(definition: WorkspaceDefinition): WorkspaceLayout {
       notes: { fields: definition.regions.bottom.tabs.notes.fields },
       activeTab: definition.regions.bottom.activeTab ?? "aggregate",
     },
+    ...(formSections !== undefined ? { form: { sections: formSections } } : {}),
   };
 }
 

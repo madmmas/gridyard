@@ -170,6 +170,74 @@
         color: var(--text-secondary);
         font-size: 12px;
       }
+    
+      .form-panel .form-body {
+        padding: 12px 14px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .form-section {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding-bottom: 12px;
+        border-bottom: 0.5px solid var(--border);
+      }
+      .form-section:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+      }
+      .form-section-title {
+        margin: 0;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+      .form-fields {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .form-field {
+        display: grid;
+        grid-template-columns: 120px 1fr;
+        gap: 8px;
+        align-items: center;
+      }
+      .form-label {
+        font-size: 12px;
+        color: var(--text-secondary);
+      }
+      .form-input {
+        font: inherit;
+        font-size: 13px;
+        color: var(--text-primary);
+        border: 0.5px solid var(--border);
+        border-radius: 6px;
+        background: var(--surface-1);
+        padding: 4px 8px;
+      }
+      .form-field[data-access="view"] .form-input {
+        color: var(--text-secondary);
+      }
+      .form-empty {
+        margin: 0;
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+    
+      .chrome-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+      }
+      .chrome-label select {
+        font: inherit;
+      }
+
     </style>
   </head>
   <body>
@@ -179,6 +247,10 @@
         <strong>Gridyard</strong>
         <span style="color: var(--text-muted)">/</span>
         <span style="color: var(--text-secondary)" id="workspace-title">Loan review</span>
+        <label class="chrome-label">
+          Demo user
+          <select id="demo-user" aria-label="Demo hierarchy user"></select>
+        </label>
       </div>
       <div class="panel">
         <div class="panel-header">main · loans</div>
@@ -194,6 +266,12 @@
         </div>
         <canvas id="main-grid" width="458" height="280" tabindex="0" aria-label="Main loan grid"></canvas>
       </div>
+
+      <div class="panel form-panel" id="form-panel">
+        <div class="panel-header" id="form-panel-header">form · selected row</div>
+        <div class="form-body" id="form-body"></div>
+      </div>
+
       <div class="panel" id="bottom-panel">
         <div class="panel-header">
           <span>bottom · columns match main (active tab below)</span>
@@ -246,7 +324,7 @@
           </button>
         </div>
       </div>
-      <p class="hint" id="status">Loading workspace…</p>
+      <p class="hint" id="status">Data loads from the mock server (<code>/loans</code> via Vite → :4000). Demo users resolve field/region permissions (Blair: overdue view-only; Casey: hide days late + no bottom). The form shows the selected main row with the same field permissions. Notes is a plain label/value list (no formula bar).</p>
       <p class="hint">
         Data loads from the mock server (<code>/loans</code> via Vite → :4000). Switch bottom
         tabs without losing Aggregate edits. Notes is a plain label/value list (no formula bar).

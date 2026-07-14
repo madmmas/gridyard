@@ -26,6 +26,13 @@ export {
   LOAN_REVIEW_SAMPLE_USERS,
   type SamplePermissionUser,
 } from "./fixtures/loan-review-permissions.js";
+export {
+  buildFormView,
+  formatFormValue,
+  type FormFieldView,
+  type FormSectionView,
+  type FormView,
+} from "./form.js";
 export { parseWorkspaceDefinition } from "./parse.js";
 export {
   canAccessRegion,
@@ -63,6 +70,9 @@ export type {
   BottomRegionDefinition,
   FieldDefinition,
   FieldType,
+  FormDefinition,
+  FormSectionDefinition,
+  FormSectionLayout,
   LayoutColumn,
   MainRegionDefinition,
   NotesTabDefinition,

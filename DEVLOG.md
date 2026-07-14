@@ -25,6 +25,12 @@ tried and abandoned — that's the whole point of this file existing.
   virtualization skipped (few columns). Demo scroll-host wiring left as
   follow-up. Unit paint isolation checked against a **5 000-row** virtual
   viewport.
+
+- Batch 04 §20 (`@gridyard/workspace-runtime` + web-demo): form engine
+  (`buildFormView` + optional `form.sections`) with Loan Review Customer /
+  Additional Information sections; demo form panel mirrors selected row and
+  the same field permissions as the grid (§19). Stacked on permission UI.
+
 - Batch 04 §19 (`@gridyard/workspace-runtime` + `@gridyard/grid-renderer`):
   `projectColumnsForPermissions` / `authorizeFieldEdit` + column remapping and
   `commitEditWithAccess`. Sample Loan Review users in

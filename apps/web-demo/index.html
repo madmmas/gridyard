@@ -81,10 +81,13 @@
         <span style="color: var(--text-secondary)">Loan review</span>
       </div>
       <div class="panel">
-        <div class="panel-header">main · values from gridyard-wasm</div>
-        <canvas id="grid" width="458" height="154"></canvas>
+        <div class="panel-header">main · click / arrows / Enter / Tab to select</div>
+        <canvas id="grid" width="458" height="154" tabindex="0" aria-label="Loan review grid"></canvas>
       </div>
       <p class="hint" id="status">Loading WASM…</p>
+      <p class="hint">
+        Focus the grid, then click a cell or use arrow keys, Enter (down), and Tab (right).
+      </p>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

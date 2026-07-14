@@ -44,6 +44,12 @@ impl Grid {
     pub fn get_cell(&self, row: u32, col: u32) -> Result<JsValue, JsValue> {
         value_to_js(&self.inner.get_cell(row, col))
     }
+
+    /// Returns the raw user input (literal or `=formula`) for the formula bar.
+    #[wasm_bindgen(js_name = get_input)]
+    pub fn get_input(&self, row: u32, col: u32) -> String {
+        self.inner.get_input(row, col)
+    }
 }
 
 /// Creates an empty grid for use from JavaScript.

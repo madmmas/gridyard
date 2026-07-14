@@ -9,7 +9,7 @@ use crate::refs::expand_range;
 /// Evaluates a parsed formula using default env (real `NOW`/`RAND`).
 ///
 /// Bare cell refs and ranges yield [`ErrorKind::Ref`] without a sheet
-/// resolver.
+/// resolver. Cross-region refs also yield [`ErrorKind::Ref`].
 pub fn evaluate(ast: &Ast) -> Value {
     evaluate_with(ast, &EvalEnv::default())
 }
@@ -20,17 +20,33 @@ pub fn evaluate_with(ast: &Ast, env: &EvalEnv) -> Value {
     evaluate_with_cells(ast, env, |_| Value::Error(ErrorKind::Ref))
 }
 
-/// Evaluates a formula, resolving cell refs/ranges through `get_cell`.
+/// Evaluates a formula, resolving same-region cell refs/ranges through
+/// `get_cell`. Cross-region refs resolve to [`ErrorKind::Ref`].
 pub fn evaluate_with_cells<F>(ast: &Ast, env: &EvalEnv, get_cell: F) -> Value
 where
     F: Fn(gridyard_core::CellId) -> Value,
 {
-    eval_node(ast, ast.root(), env, &get_cell)
+    evaluate_with_resolvers(ast, env, get_cell, |_, _| Value::Error(ErrorKind::Ref))
 }
 
-fn eval_node<F>(ast: &Ast, id: NodeId, env: &EvalEnv, get_cell: &F) -> Value
+/// Evaluates a formula with separate same-region and cross-region resolvers.
+pub fn evaluate_with_resolvers<F, G>(
+    ast: &Ast,
+    env: &EvalEnv,
+    get_cell: F,
+    get_external: G,
+) -> Value
 where
     F: Fn(gridyard_core::CellId) -> Value,
+    G: Fn(&str, gridyard_core::CellId) -> Value,
+{
+    eval_node(ast, ast.root(), env, &get_cell, &get_external)
+}
+
+fn eval_node<F, G>(ast: &Ast, id: NodeId, env: &EvalEnv, get_cell: &F, get_external: &G) -> Value
+where
+    F: Fn(gridyard_core::CellId) -> Value,
+    G: Fn(&str, gridyard_core::CellId) -> Value,
 {
     match ast.node(id) {
         Expr::Number(n) => Value::Number(*n),
@@ -44,46 +60,65 @@ where
                 .collect();
             Value::Array(values)
         }
-        Expr::Unary { op, expr } => eval_unary(ast, *op, *expr, env, get_cell),
-        Expr::Binary { op, left, right } => eval_binary(ast, *op, *left, *right, env, get_cell),
+        Expr::ExternalCellRef { region, cell } => get_external(region, *cell),
+        Expr::ExternalRange { region, start, end } => {
+            let values: Vec<Value> = expand_range(*start, *end)
+                .into_iter()
+                .map(|c| get_external(region, c))
+                .collect();
+            Value::Array(values)
+        }
+        Expr::Unary { op, expr } => eval_unary(ast, *op, *expr, env, get_cell, get_external),
+        Expr::Binary { op, left, right } => {
+            eval_binary(ast, *op, *left, *right, env, get_cell, get_external)
+        }
         Expr::Call { name, args } => {
             if name.eq_ignore_ascii_case("IF") {
-                return eval_if(ast, args, env, get_cell);
+                return eval_if(ast, args, env, get_cell, get_external);
             }
             let values: Vec<Value> = args
                 .iter()
-                .map(|a| eval_node(ast, *a, env, get_cell))
+                .map(|a| eval_node(ast, *a, env, get_cell, get_external))
                 .collect();
             functions::dispatch(name, &values, env)
         }
     }
 }
 
-fn eval_if<F>(ast: &Ast, args: &[NodeId], env: &EvalEnv, get_cell: &F) -> Value
+fn eval_if<F, G>(ast: &Ast, args: &[NodeId], env: &EvalEnv, get_cell: &F, get_external: &G) -> Value
 where
     F: Fn(gridyard_core::CellId) -> Value,
+    G: Fn(&str, gridyard_core::CellId) -> Value,
 {
     if args.len() < 2 || args.len() > 3 {
         return Value::Error(ErrorKind::Value);
     }
-    match eval_node(ast, args[0], env, get_cell) {
+    match eval_node(ast, args[0], env, get_cell, get_external) {
         Value::Error(e) => Value::Error(e),
         cond => match cond.coerce_bool() {
-            Some(true) => eval_node(ast, args[1], env, get_cell),
+            Some(true) => eval_node(ast, args[1], env, get_cell, get_external),
             Some(false) => args
                 .get(2)
-                .map(|id| eval_node(ast, *id, env, get_cell))
+                .map(|id| eval_node(ast, *id, env, get_cell, get_external))
                 .unwrap_or(Value::Bool(false)),
             None => Value::Error(ErrorKind::Value),
         },
     }
 }
 
-fn eval_unary<F>(ast: &Ast, op: UnaryOp, expr: NodeId, env: &EvalEnv, get_cell: &F) -> Value
+fn eval_unary<F, G>(
+    ast: &Ast,
+    op: UnaryOp,
+    expr: NodeId,
+    env: &EvalEnv,
+    get_cell: &F,
+    get_external: &G,
+) -> Value
 where
     F: Fn(gridyard_core::CellId) -> Value,
+    G: Fn(&str, gridyard_core::CellId) -> Value,
 {
-    let v = eval_node(ast, expr, env, get_cell);
+    let v = eval_node(ast, expr, env, get_cell, get_external);
     if let Value::Error(e) = v {
         return Value::Error(e);
     }
@@ -96,22 +131,24 @@ where
     }
 }
 
-fn eval_binary<F>(
+fn eval_binary<F, G>(
     ast: &Ast,
     op: BinOp,
     left: NodeId,
     right: NodeId,
     env: &EvalEnv,
     get_cell: &F,
+    get_external: &G,
 ) -> Value
 where
     F: Fn(gridyard_core::CellId) -> Value,
+    G: Fn(&str, gridyard_core::CellId) -> Value,
 {
-    let l = eval_node(ast, left, env, get_cell);
+    let l = eval_node(ast, left, env, get_cell, get_external);
     if let Value::Error(e) = l {
         return Value::Error(e);
     }
-    let r = eval_node(ast, right, env, get_cell);
+    let r = eval_node(ast, right, env, get_cell, get_external);
     if let Value::Error(e) = r {
         return Value::Error(e);
     }
@@ -168,6 +205,10 @@ mod tests {
             eval_formula("A1:A8").unwrap(),
             Value::Array(vec![Value::Error(ErrorKind::Ref); 8])
         );
+        assert_eq!(
+            eval_formula("main!A1").unwrap(),
+            Value::Error(ErrorKind::Ref)
+        );
     }
 
     #[test]
@@ -181,5 +222,23 @@ mod tests {
             }
         });
         assert_eq!(value, Value::Number(42.0));
+    }
+
+    #[test]
+    fn resolves_external_refs_through_callback() {
+        let ast = crate::parse_formula("main!A1+1").unwrap();
+        let value = evaluate_with_resolvers(
+            &ast,
+            &EvalEnv::default(),
+            |_| Value::Error(ErrorKind::Ref),
+            |region, id| {
+                if region.eq_ignore_ascii_case("main") && id == cell_id(0, 0) {
+                    Value::Number(10.0)
+                } else {
+                    Value::Error(ErrorKind::Ref)
+                }
+            },
+        );
+        assert_eq!(value, Value::Number(11.0));
     }
 }

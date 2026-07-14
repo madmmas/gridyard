@@ -80,6 +80,57 @@ export function columnLeft(layout: GridLayout, col: number): number {
   return x;
 }
 
+/**
+ * Builds a bottom-region layout whose column widths are locked to `main`.
+ *
+ * Row count / row height / gutter chrome are independent; only
+ * `columnWidths` (and therefore horizontal cell positions) are synced —
+ * see `docs/04-layout-and-permission-engine-spec.md`.
+ */
+export function computeBottomLayoutFromMain(
+  main: GridLayout,
+  bottomRows: number,
+  overrides?: Pick<
+    GridLayoutInput,
+    "gutterWidth" | "refRowHeight" | "nameRowHeight" | "rowHeight"
+  >,
+): GridLayout {
+  if (bottomRows < 0) {
+    throw new RangeError("bottomRows must be non-negative");
+  }
+  return computeGridLayout({
+    rows: bottomRows,
+    cols: main.columnWidths.length,
+    columnWidths: [...main.columnWidths],
+    gutterWidth: overrides?.gutterWidth ?? main.gutterWidth,
+    refRowHeight: overrides?.refRowHeight ?? main.refRowHeight,
+    nameRowHeight: overrides?.nameRowHeight ?? main.nameRowHeight,
+    rowHeight: overrides?.rowHeight ?? main.rowHeight,
+  });
+}
+
+/**
+ * Returns true when every data-column left edge matches between layouts
+ * (gutter + each column width). Used to assert Aggregate column sync.
+ */
+export function columnPositionsMatch(a: GridLayout, b: GridLayout): boolean {
+  if (a.columnWidths.length !== b.columnWidths.length) {
+    return false;
+  }
+  if (a.gutterWidth !== b.gutterWidth) {
+    return false;
+  }
+  for (let c = 0; c < a.columnWidths.length; c += 1) {
+    if (a.columnWidths[c] !== b.columnWidths[c]) {
+      return false;
+    }
+    if (columnLeft(a, c) !== columnLeft(b, c)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 /** Top-left and size of a data cell (not header/gutter). */
 export function dataCellRect(
   layout: GridLayout,

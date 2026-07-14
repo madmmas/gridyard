@@ -7,6 +7,7 @@ import { loadLoanReviewMain } from "./load-loan-review.js";
 import {
   boundValueToInput,
   paintConfigFromLayout,
+  seedBottomAggregate,
   seedGridFromBoundMain,
 } from "./seed-from-bound-grid.js";
 
@@ -73,6 +74,25 @@ describe("paintConfigFromLayout", () => {
       "Days late",
     ]);
     expect([...config.numericColumns].sort((a, b) => a - b)).toEqual([1, 3]);
+  });
+});
+
+describe("seedBottomAggregate", () => {
+  it("writes Total/Average labels and main! SUM/AVERAGE formulas", () => {
+    const calls: Array<[number, number, string]> = [];
+    const grid = {
+      set_cell(row: number, col: number, input: string): void {
+        calls.push([row, col, input]);
+      },
+    };
+    const dims = seedBottomAggregate(grid, 7, 4, new Set([1, 3]));
+    expect(dims).toEqual({ rows: 2, cols: 4 });
+    expect(calls).toContainEqual([0, 0, "Total (7)"]);
+    expect(calls).toContainEqual([1, 0, "Average"]);
+    expect(calls).toContainEqual([0, 1, "=SUM(main!B1:B7)"]);
+    expect(calls).toContainEqual([1, 1, "=AVERAGE(main!B1:B7)"]);
+    expect(calls).toContainEqual([0, 2, "—"]);
+    expect(calls).toContainEqual([0, 3, "=SUM(main!D1:D7)"]);
   });
 });
 

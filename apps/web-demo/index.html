@@ -58,6 +58,9 @@
         border-radius: var(--radius);
         overflow: hidden;
       }
+      .panel + .panel {
+        margin-top: 16px;
+      }
       .panel-header {
         padding: 6px 10px;
         font: 10px/1.4 ui-monospace, monospace;
@@ -104,26 +107,44 @@
         <span style="color: var(--text-secondary)" id="workspace-title">Loan review</span>
       </div>
       <div class="panel">
-        <div class="panel-header">main · edit · ⌘/Ctrl+Z undo · ⌘/Ctrl+Shift+Z redo</div>
+        <div class="panel-header">main · loans</div>
         <div class="formula-bar">
-          <span class="addr" id="formula-addr">A1</span>
+          <span class="addr" id="main-formula-addr">A1</span>
           <input
-            id="formula-input"
+            id="main-formula-input"
             type="text"
             spellcheck="false"
             autocomplete="off"
-            aria-label="Formula bar"
+            aria-label="Main formula bar"
           />
         </div>
-        <canvas id="grid" width="458" height="280" tabindex="0" aria-label="Loan review grid"></canvas>
+        <canvas id="main-grid" width="458" height="280" tabindex="0" aria-label="Main loan grid"></canvas>
+      </div>
+      <div class="panel">
+        <div class="panel-header">bottom · Aggregate (columns synced from main)</div>
+        <div class="formula-bar">
+          <span class="addr" id="bottom-formula-addr">A1</span>
+          <input
+            id="bottom-formula-input"
+            type="text"
+            spellcheck="false"
+            autocomplete="off"
+            aria-label="Bottom Aggregate formula bar"
+          />
+        </div>
+        <canvas
+          id="bottom-grid"
+          width="458"
+          height="120"
+          tabindex="0"
+          aria-label="Bottom Aggregate grid"
+        ></canvas>
       </div>
       <p class="hint" id="status">Loading workspace…</p>
       <p class="hint">
         Data loads from the mock server (<code>/loans</code> via Vite → :4000). Run
-        <code>make up</code> (or <code>make mock-server</code>) alongside
-        <code>make demo</code>. Click to select; edit the formula bar — Enter commits,
-        Escape cancels. Try a formula like <code>=B1+100</code> on Overdue. Undo/redo:
-        ⌘/Ctrl+Z and ⌘/Ctrl+Shift+Z (or Ctrl+Y).
+        <code>make up</code> alongside <code>make demo</code>. Bottom Aggregate uses
+        <code>main!</code> formulas; edit Overdue in main and Aggregate updates.
       </p>
     </div>
     <script type="module" src="/src/main.ts"></script>

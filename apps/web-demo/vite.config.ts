@@ -36,6 +36,9 @@ function optionalWasmPkg(): Plugin {
         export function create_grid() {
           throw new Error("WASM package missing — run: npm run build:wasm --workspace=web-demo");
         }
+        export function create_workspace() {
+          throw new Error("WASM package missing — run: npm run build:wasm --workspace=web-demo");
+        }
       `;
     },
   };

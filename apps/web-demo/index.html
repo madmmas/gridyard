@@ -62,7 +62,10 @@
         margin-top: 16px;
       }
       .panel-header {
-        padding: 6px 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 8px 6px 10px;
         font: 10px/1.4 ui-monospace, monospace;
         color: var(--text-muted);
         background: var(--surface-1);
@@ -90,6 +93,77 @@
         font: inherit;
         color: var(--text-primary);
         min-width: 0;
+      }
+      .tabs {
+        display: flex;
+        gap: 2px;
+        padding: 6px 10px 0;
+        background: var(--surface-1);
+        border-bottom: 0.5px solid var(--border);
+      }
+      .tab {
+        border: none;
+        border-radius: 6px 6px 0 0;
+        padding: 6px 12px;
+        font-size: 12px;
+        cursor: pointer;
+        background: transparent;
+        color: var(--text-secondary);
+      }
+      .tab.active {
+        background: var(--surface-0);
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+      .tab-panel {
+        display: none;
+      }
+      .tab-panel.active {
+        display: block;
+      }
+      .notes-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        table-layout: fixed;
+      }
+      .notes-table th {
+        text-align: left;
+        padding: 8px 10px;
+        color: var(--text-secondary);
+        font-weight: 500;
+        background: var(--surface-1);
+        border-bottom: 0.5px solid var(--border);
+      }
+      .notes-table td {
+        padding: 6px 10px;
+        border-bottom: 0.5px solid var(--border);
+        vertical-align: middle;
+      }
+      .notes-table input {
+        width: 100%;
+        border: none;
+        outline: none;
+        background: transparent;
+        font: inherit;
+        color: var(--text-secondary);
+      }
+      .add-row {
+        padding: 6px 10px;
+      }
+      .add-btn {
+        width: 20px;
+        height: 20px;
+        border: none;
+        background: transparent;
+        color: var(--text-secondary);
+        font-size: 15px;
+        line-height: 1;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+      .add-btn:hover {
+        background: var(--surface-1);
       }
       .hint {
         margin-top: 12px;
@@ -120,31 +194,62 @@
         </div>
         <canvas id="main-grid" width="458" height="280" tabindex="0" aria-label="Main loan grid"></canvas>
       </div>
-      <div class="panel">
-        <div class="panel-header">bottom · Aggregate (columns synced from main)</div>
-        <div class="formula-bar">
-          <span class="addr" id="bottom-formula-addr">A1</span>
-          <input
-            id="bottom-formula-input"
-            type="text"
-            spellcheck="false"
-            autocomplete="off"
-            aria-label="Bottom Aggregate formula bar"
-          />
+      <div class="panel" id="bottom-panel">
+        <div class="panel-header">
+          <span>bottom · columns match main (active tab below)</span>
         </div>
-        <canvas
-          id="bottom-grid"
-          width="458"
-          height="120"
-          tabindex="0"
-          aria-label="Bottom Aggregate grid"
-        ></canvas>
+        <div class="tabs" role="tablist" aria-label="Bottom region tabs">
+          <button type="button" class="tab active" id="tab-aggregate" role="tab" aria-selected="true">
+            Aggregate
+          </button>
+          <button type="button" class="tab" id="tab-notes" role="tab" aria-selected="false">
+            Notes
+          </button>
+        </div>
+        <div class="tab-panel active" id="panel-aggregate" role="tabpanel">
+          <div class="formula-bar">
+            <span class="addr" id="bottom-formula-addr">A1</span>
+            <input
+              id="bottom-formula-input"
+              type="text"
+              spellcheck="false"
+              autocomplete="off"
+              aria-label="Bottom Aggregate formula bar"
+            />
+          </div>
+          <canvas
+            id="bottom-grid"
+            width="458"
+            height="120"
+            tabindex="0"
+            aria-label="Bottom Aggregate grid"
+          ></canvas>
+        </div>
+        <div class="tab-panel" id="panel-notes" role="tabpanel" hidden>
+          <table class="notes-table">
+            <colgroup>
+              <col style="width: 50%" />
+              <col style="width: 50%" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Label</th>
+                <th>Value</th>
+              </tr>
+            </thead>
+            <tbody id="notes-body"></tbody>
+          </table>
+        </div>
+        <div class="add-row">
+          <button type="button" class="add-btn" id="bottom-add-row" title="Add row to active tab">
+            +
+          </button>
+        </div>
       </div>
       <p class="hint" id="status">Loading workspace…</p>
       <p class="hint">
-        Data loads from the mock server (<code>/loans</code> via Vite → :4000). Run
-        <code>make up</code> alongside <code>make demo</code>. Bottom Aggregate uses
-        <code>main!</code> formulas; edit Overdue in main and Aggregate updates.
+        Data loads from the mock server (<code>/loans</code> via Vite → :4000). Switch bottom
+        tabs without losing Aggregate edits. Notes is a plain label/value list (no formula bar).
       </p>
     </div>
     <script type="module" src="/src/main.ts"></script>

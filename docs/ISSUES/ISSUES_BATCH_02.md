@@ -88,6 +88,10 @@ closing the loop from "click a cell" to "see it recalculate."
 ### Notes
 This is the first issue where the renderer becomes genuinely interactive — worth a bit more manual testing in the demo app (issue #12) than usual before calling it done.
 
+Formula-bar-only editing (click the bar to type) is intentional for this
+slice. Spreadsheet-like type-to-edit / in-cell caret polish is deferred —
+see **Deferred** below and GitHub `#25`.
+
 ---
 
 ## 9. [gridyard-grid] Undo/redo command stack
@@ -226,4 +230,25 @@ schema, rendered by `grid-renderer`, selectable, editable, undoable.
 - [ ] `npm test --workspaces --if-present`, typecheck, and `npm run build --workspaces --if-present` all pass
 
 ### Notes
-This is the milestone worth a manual click-through before closing — the acceptance criteria above are explicitly about it working in a browser, not just CI passing.
+This is the milestone worth a manual click-through before closing — the
+acceptance criteria above are explicitly about it working in a browser,
+not just CI passing.
+
+---
+
+## Deferred (not in this batch)
+
+Tracked separately so batch §7–§12 stay shippable without spreadsheet
+edit-UX polish.
+
+### [grid-renderer] Type-to-edit and formula-bar focus polish — `#25`
+
+**Why deferred:** Specs and §8 only require a formula bar + commit/cancel.
+Needing to mouse-focus the bar before typing is acceptable for the first
+interactive demo.
+
+**When to pick up:** When demo edit friction matters; start with
+type-over / `F2` / double-click focusing the formula bar. True in-cell
+caret overlay on the canvas is a later slice inside the same issue.
+
+**GitHub:** https://github.com/madmmas/gridyard/issues/25

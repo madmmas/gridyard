@@ -9,6 +9,7 @@ declare module "*gridyard_wasm.js" {
   export class Grid {
     set_cell(row: number, col: number, input: string): void;
     get_cell(row: number, col: number): unknown;
+    get_input(row: number, col: number): string;
     free(): void;
   }
 

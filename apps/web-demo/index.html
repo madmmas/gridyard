@@ -65,6 +65,29 @@
         background: var(--surface-1);
         border-bottom: 0.5px solid var(--border);
       }
+      .formula-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 10px;
+        font: 11px/1.4 ui-monospace, monospace;
+        color: var(--text-secondary);
+        background: var(--surface-0);
+        border-bottom: 0.5px solid var(--border);
+      }
+      .formula-bar .addr {
+        color: var(--text-muted);
+        min-width: 2.5em;
+      }
+      .formula-bar input {
+        flex: 1;
+        border: none;
+        outline: none;
+        background: transparent;
+        font: inherit;
+        color: var(--text-primary);
+        min-width: 0;
+      }
       .hint {
         margin-top: 12px;
         color: var(--text-secondary);
@@ -81,12 +104,23 @@
         <span style="color: var(--text-secondary)">Loan review</span>
       </div>
       <div class="panel">
-        <div class="panel-header">main · click / arrows / Enter / Tab to select</div>
+        <div class="panel-header">main · select, edit in formula bar, Enter commits</div>
+        <div class="formula-bar">
+          <span class="addr" id="formula-addr">A1</span>
+          <input
+            id="formula-input"
+            type="text"
+            spellcheck="false"
+            autocomplete="off"
+            aria-label="Formula bar"
+          />
+        </div>
         <canvas id="grid" width="458" height="154" tabindex="0" aria-label="Loan review grid"></canvas>
       </div>
       <p class="hint" id="status">Loading WASM…</p>
       <p class="hint">
-        Focus the grid, then click a cell or use arrow keys, Enter (down), and Tab (right).
+        Click a cell to select. Edit the formula bar — Enter commits (and moves), Escape
+        cancels. Invalid formulas render as red error cells.
       </p>
     </div>
     <script type="module" src="/src/main.ts"></script>

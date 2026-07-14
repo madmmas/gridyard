@@ -15,6 +15,16 @@ export {
 } from "./layout.js";
 export { GRID_THEME, paintStaticGrid, type PaintStaticGridOptions } from "./render.js";
 export {
+  asEditableGrid,
+  beginEdit,
+  cancelEdit,
+  commitEdit,
+  formulaBarText,
+  updateDraft,
+  type EditableGrid,
+  type EditSession,
+} from "./edit.js";
+export {
   clampSelection,
   hitTestDataCell,
   isSelectionNavKey,

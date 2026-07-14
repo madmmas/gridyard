@@ -31,6 +31,11 @@ impl GridHandle {
     pub fn get_cell(&self, row: u32, col: u32) -> Value {
         self.engine.get_value(cell_id(row, col))
     }
+
+    /// Returns the raw user input at `(row, col)` (literal or `=formula`).
+    pub fn get_input(&self, row: u32, col: u32) -> String {
+        self.engine.get_input(cell_id(row, col))
+    }
 }
 
 #[cfg(test)]
@@ -58,11 +63,21 @@ mod tests {
     }
 
     #[test]
-    fn malformed_formula_returns_error() {
+    fn malformed_formula_surfaces_as_error_value() {
         let mut grid = GridHandle::new();
-        let err = grid.set_cell(0, 0, "=1+").expect_err("parse error");
-        assert!(!err.is_empty());
-        assert_eq!(grid.get_cell(0, 0), Value::Empty);
+        grid.set_cell(0, 0, "=1+").expect("stored with error");
+        assert_eq!(grid.get_input(0, 0), "=1+");
+        assert_eq!(grid.get_cell(0, 0), Value::Error(ErrorKind::Value));
+    }
+
+    #[test]
+    fn get_input_round_trips_literals_and_formulas() {
+        let mut grid = GridHandle::new();
+        grid.set_cell(0, 0, "10").expect("A1");
+        grid.set_cell(0, 1, "=A1*2").expect("B1");
+        assert_eq!(grid.get_input(0, 0), "10");
+        assert_eq!(grid.get_input(0, 1), "=A1*2");
+        assert_eq!(grid.get_input(1, 0), "");
     }
 
     #[test]

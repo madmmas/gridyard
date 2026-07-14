@@ -22,6 +22,8 @@ export const GRID_THEME = {
   selectionFill: "#e6f1fb",
   /** Active selection border (`--fill-accent` in the mockup). */
   selectionBorder: "#378add",
+  /** Error cell text (`--text-danger` in the mockup). */
+  textDanger: "#791f1f",
 } as const;
 
 export interface PaintStaticGridOptions extends GridLayoutInput {
@@ -174,15 +176,17 @@ function paintBody(
   source: GridDataSource,
   numericColumns: ReadonlySet<number>,
 ): void {
-  ctx.fillStyle = GRID_THEME.textPrimary;
   ctx.font = "13px ui-sans-serif, system-ui, sans-serif";
   ctx.textBaseline = "middle";
   for (let r = 0; r < rows; r += 1) {
     for (let c = 0; c < cols; c += 1) {
       const rect = dataCellRect(layout, r, c);
-      const text = formatCellValue(source.get_cell(r, c));
+      const value = source.get_cell(r, c);
+      const text = formatCellValue(value);
       const y = rect.y + rect.height / 2;
-      if (numericColumns.has(c)) {
+      ctx.fillStyle =
+        value.type === "error" ? GRID_THEME.textDanger : GRID_THEME.textPrimary;
+      if (numericColumns.has(c) && value.type !== "error") {
         ctx.textAlign = "right";
         ctx.fillText(text, rect.x + rect.width - 10, y, rect.width - 16);
       } else {

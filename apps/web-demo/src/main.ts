@@ -4,8 +4,9 @@ import {
   beginEdit,
   bottomControlTarget,
   cancelEdit,
+  clampSelection,
   colIndexToLetters,
-  commitEdit,
+  commitEditWithAccess,
   computeBottomLayoutFromMain,
   computeGridLayout,
   createBottomTabState,
@@ -15,6 +16,7 @@ import {
   isSelectionNavKey,
   moveSelection,
   paintStaticGrid,
+  remapEditableGrid,
   selectBottomTab,
   updateDraft,
   updateNotesRow,
@@ -26,11 +28,27 @@ import {
   type NotesRow,
   type WorkspaceRegion,
 } from "@gridyard/grid-renderer";
-
-import { loadLoanReviewMain } from "./load-loan-review.js";
-import { historyActionFromKey } from "./history-keys.js";
 import {
-  paintConfigFromLayout,
+  LOAN_REVIEW_PERMISSIONS,
+  LOAN_REVIEW_SAMPLE_USERS,
+  buildFormView,
+  isRegionVisible,
+  projectColumnsForPermissions,
+  resolvePermissions,
+  type BoundMainGrid,
+  type BoundRow,
+  type EffectivePermissions,
+  type PermissionColumnProjection,
+  type SamplePermissionUser,
+  type WorkspaceLayout,
+} from "@gridyard/workspace-runtime";
+
+import { historyActionFromKey } from "./history-keys.js";
+import { loadLoanReviewMain } from "./load-loan-review.js";
+import { renderFormView } from "./render-form.js";
+import {
+  engineNumericColumns,
+  paintConfigFromPermissionProjection,
   seedBottomAggregate,
   seedGridFromBoundMain,
 } from "./seed-from-bound-grid.js";
@@ -42,6 +60,9 @@ interface RegionUi {
   ctx: CanvasRenderingContext2D;
   formulaInput: HTMLInputElement;
   formulaAddr: HTMLElement;
+  /** Full-column engine-backed grid. */
+  engineGrid: EditableGrid;
+  /** Paint-index remapped grid (hidden columns omitted). */
   grid: EditableGrid;
   bounds: { rows: number; cols: number };
   selection: CellAddress | null;
@@ -66,12 +87,16 @@ async function main(): Promise<void> {
   const mainFormulaAddrEl = document.getElementById("main-formula-addr");
   const bottomFormulaAddrEl = document.getElementById("bottom-formula-addr");
   const workspaceTitleEl = document.getElementById("workspace-title");
+  const formBodyEl = document.getElementById("form-body");
+  const formPanelHeaderEl = document.getElementById("form-panel-header");
   const tabAggregateEl = document.getElementById("tab-aggregate");
   const tabNotesEl = document.getElementById("tab-notes");
   const panelAggregateEl = document.getElementById("panel-aggregate");
   const panelNotesEl = document.getElementById("panel-notes");
   const notesBodyEl = document.getElementById("notes-body");
   const bottomAddRowEl = document.getElementById("bottom-add-row");
+  const bottomPanelEl = document.getElementById("bottom-panel");
+  const userSelectEl = document.getElementById("demo-user");
   if (
     !(mainCanvasEl instanceof HTMLCanvasElement) ||
     !(bottomCanvasEl instanceof HTMLCanvasElement) ||
@@ -80,56 +105,55 @@ async function main(): Promise<void> {
     !(bottomFormulaInputEl instanceof HTMLInputElement) ||
     mainFormulaAddrEl === null ||
     bottomFormulaAddrEl === null ||
+    workspaceTitleEl === null ||
+    formBodyEl === null ||
+    formPanelHeaderEl === null ||
     !(tabAggregateEl instanceof HTMLButtonElement) ||
     !(tabNotesEl instanceof HTMLButtonElement) ||
     panelAggregateEl === null ||
     panelNotesEl === null ||
     notesBodyEl === null ||
-    !(bottomAddRowEl instanceof HTMLButtonElement)
+    !(bottomAddRowEl instanceof HTMLButtonElement) ||
+    bottomPanelEl === null ||
+    !(userSelectEl instanceof HTMLSelectElement)
   ) {
-    throw new Error("expected main/bottom grid + formula bar + tab elements");
+    throw new Error(
+      "expected main/bottom grid + formula bar + tabs + user/form elements",
+    );
   }
   const status: HTMLElement = statusEl;
+  const workspaceTitle = workspaceTitleEl;
+  const formBody = formBodyEl;
+  const formPanelHeader = formPanelHeaderEl;
   const tabAggregate = tabAggregateEl;
   const tabNotes = tabNotesEl;
   const panelAggregate = panelAggregateEl;
   const panelNotes = panelNotesEl;
   const notesBody = notesBodyEl;
   const bottomAddRow = bottomAddRowEl;
+  const bottomPanel = bottomPanelEl;
+  const userSelect = userSelectEl;
   const mainCtx = mainCanvasEl.getContext("2d");
   const bottomCtx = bottomCanvasEl.getContext("2d");
   if (mainCtx === null || bottomCtx === null) {
     throw new Error("2d context unavailable");
   }
 
-  status.textContent = "Loading workspace + loans…";
-  const loaded = await loadLoanReviewMain();
-  if (!loaded.ok) {
-    status.textContent = `Failed to load loans: ${loaded.error.message}. Is the mock server on :4000? (make up)`;
-    return;
-  }
-  const workspaceLayout = loaded.layout;
-  const boundGrid = loaded.grid;
-
-  if (workspaceTitleEl !== null) {
-    workspaceTitleEl.textContent = workspaceLayout.name;
-  }
-
   await init();
-  const rawWorkspace = create_workspace();
-  const mainGrid = asRegionEditableGrid(rawWorkspace, "main");
-  const bottomGrid = asRegionEditableGrid(rawWorkspace, "bottom");
 
-  const dims = seedGridFromBoundMain(mainGrid, boundGrid);
-  const paintConfig = paintConfigFromLayout(workspaceLayout, dims.rows);
-  const bottomDims = seedBottomAggregate(
-    bottomGrid,
-    dims.rows,
-    dims.cols,
-    paintConfig.numericColumns,
-  );
-  // Don't let the user undo into fixture seeding.
-  rawWorkspace.clear_history();
+  const sampleUsers = LOAN_REVIEW_SAMPLE_USERS;
+  const permissions = LOAN_REVIEW_PERMISSIONS;
+
+  let rawWorkspace = create_workspace();
+  let mainEngine = asRegionEditableGrid(rawWorkspace, "main");
+  let bottomEngine = asRegionEditableGrid(rawWorkspace, "bottom");
+
+  let workspaceLayout!: WorkspaceLayout;
+  let boundRows: BoundRow[] = [];
+  let dims = { rows: 0, cols: 0 };
+  let effective!: EffectivePermissions;
+  let projection!: PermissionColumnProjection;
+  let lastDeniedMessage: string | null = null;
 
   const mainUi: RegionUi = {
     region: "main",
@@ -137,18 +161,18 @@ async function main(): Promise<void> {
     ctx: mainCtx,
     formulaInput: mainFormulaInputEl,
     formulaAddr: mainFormulaAddrEl,
-    grid: mainGrid,
-    bounds: { rows: dims.rows, cols: dims.cols },
-    selection:
-      dims.rows > 0 && dims.cols > 0 ? { row: 0, col: 0 } : null,
+    engineGrid: mainEngine,
+    grid: mainEngine,
+    bounds: { rows: 0, cols: 0 },
+    selection: null,
     layout: null,
     session: null,
     paintBase: {
-      rows: paintConfig.rows,
-      cols: paintConfig.cols,
-      columnNames: paintConfig.columnNames,
-      columnWidths: paintConfig.columnWidths,
-      numericColumns: paintConfig.numericColumns,
+      rows: 0,
+      cols: 0,
+      columnNames: [],
+      columnWidths: [],
+      numericColumns: new Set(),
       chrome: "main",
     },
   };
@@ -159,21 +183,27 @@ async function main(): Promise<void> {
     ctx: bottomCtx,
     formulaInput: bottomFormulaInputEl,
     formulaAddr: bottomFormulaAddrEl,
-    grid: bottomGrid,
-    bounds: { rows: bottomDims.rows, cols: bottomDims.cols },
-    selection:
-      bottomDims.rows > 0 && bottomDims.cols > 0 ? { row: 0, col: 0 } : null,
+    engineGrid: bottomEngine,
+    grid: bottomEngine,
+    bounds: { rows: 0, cols: 0 },
+    selection: null,
     layout: null,
     session: null,
     paintBase: {
-      rows: bottomDims.rows,
-      cols: bottomDims.cols,
-      columnNames: paintConfig.columnNames,
-      columnWidths: paintConfig.columnWidths,
-      numericColumns: paintConfig.numericColumns,
+      rows: 0,
+      cols: 0,
+      columnNames: [],
+      columnWidths: [],
+      numericColumns: new Set(),
       chrome: "bottom",
     },
   };
+
+  let bottomTabs: BottomTabState = createBottomTabState("aggregate");
+  let notesRows: NotesRow[] = createNotesRows([
+    { label: "Approval policy", value: "policy.pdf" },
+    { label: "Q1 review", value: "notes.docx" },
+  ]);
 
   function formatSelection(active: CellAddress | null): string {
     if (active === null) {
@@ -182,20 +212,136 @@ async function main(): Promise<void> {
     return `${colIndexToLetters(active.col)}${String(active.row + 1)}`;
   }
 
+  function accessForSelection(ui: RegionUi): "view" | "edit" | "hidden" {
+    if (ui.selection === null) {
+      return "view";
+    }
+    return projection.columns[ui.selection.col]?.access ?? "view";
+  }
+
+  function fieldIdForSelection(ui: RegionUi): string | undefined {
+    if (ui.selection === null) {
+      return undefined;
+    }
+    return projection.columns[ui.selection.col]?.fieldId;
+  }
+
   function syncFormulaBar(ui: RegionUi): void {
     ui.formulaAddr.textContent = formatSelection(ui.selection);
     ui.formulaInput.value = formulaBarText(ui.grid, ui.selection);
     ui.session = null;
+    const access = accessForSelection(ui);
+    const editable = access === "edit";
+    ui.formulaInput.readOnly = !editable;
+    ui.formulaInput.title = editable
+      ? ""
+      : `Read-only: ${fieldIdForSelection(ui) ?? "field"} is ${access}`;
   }
 
   function startSessionFromBar(ui: RegionUi): void {
     if (ui.selection === null || ui.session !== null) {
       return;
     }
+    if (accessForSelection(ui) !== "edit") {
+      return;
+    }
     ui.session = beginEdit(ui.selection, formulaBarText(ui.grid, ui.selection));
   }
 
+  function refreshForm(): void {
+    const rowIndex = mainUi.selection?.row ?? 0;
+    const record: BoundRow = boundRows[rowIndex] ?? {};
+    const form = buildFormView(workspaceLayout, record, effective);
+    const label =
+      boundRows[rowIndex] === undefined
+        ? "form · no row"
+        : `form · row ${String(rowIndex + 1)}`;
+    formPanelHeader.textContent = label;
+    renderFormView(formBody, form);
+  }
+
+  function populateUserSelect(users: readonly SamplePermissionUser[]): void {
+    userSelect.replaceChildren();
+    for (const sample of users) {
+      const option = document.createElement("option");
+      option.value = sample.id;
+      option.textContent = sample.label;
+      userSelect.append(option);
+    }
+    userSelect.value = users[0]?.id ?? "";
+  }
+
+  function applyPermissionsFromUser(userId: string): void {
+    const sample =
+      sampleUsers.find((u) => u.id === userId) ??
+      sampleUsers[0];
+    if (sample === undefined) {
+      return;
+    }
+    effective = resolvePermissions(permissions, sample.position);
+    projection = projectColumnsForPermissions(
+      workspaceLayout.main.columns,
+      effective,
+    );
+    lastDeniedMessage = null;
+
+    const paintMain = paintConfigFromPermissionProjection(dims.rows, projection);
+    const paintBottom = paintConfigFromPermissionProjection(
+      bottomUi.paintBase.rows,
+      projection,
+    );
+
+    mainUi.grid = remapEditableGrid(mainUi.engineGrid, projection.engineColIndices);
+    bottomUi.grid = remapEditableGrid(
+      bottomUi.engineGrid,
+      projection.engineColIndices,
+    );
+
+    mainUi.paintBase = { ...paintMain, chrome: "main" };
+    bottomUi.paintBase = { ...paintBottom, chrome: "bottom" };
+    mainUi.bounds = { rows: paintMain.rows, cols: paintMain.cols };
+    bottomUi.bounds = { rows: paintBottom.rows, cols: paintBottom.cols };
+
+    mainUi.selection =
+      mainUi.selection === null
+        ? clampSelection({ row: 0, col: 0 }, mainUi.bounds)
+        : clampSelection(mainUi.selection, mainUi.bounds);
+    bottomUi.selection =
+      bottomUi.selection === null
+        ? clampSelection({ row: 0, col: 0 }, bottomUi.bounds)
+        : clampSelection(bottomUi.selection, bottomUi.bounds);
+    mainUi.session = null;
+    bottomUi.session = null;
+
+    const bottomOk = isRegionVisible(effective, "bottom");
+    bottomPanel.hidden = !bottomOk;
+    bottomPanel.setAttribute("aria-hidden", bottomOk ? "false" : "true");
+
+    syncFormulaBar(mainUi);
+    syncFormulaBar(bottomUi);
+    refreshForm();
+    repaintAll();
+  }
+
+  function statusLine(): string {
+    const sample =
+      sampleUsers.find((u) => u.id === userSelect.value) ??
+      sampleUsers[0];
+    const userBit = sample === undefined ? "" : ` · ${sample.label}`;
+    const denied =
+      lastDeniedMessage === null ? "" : ` · ${lastDeniedMessage}`;
+    const bottomBit = isRegionVisible(effective, "bottom")
+      ? ` · bottom ${formatSelection(bottomUi.selection)}`
+      : " · bottom denied";
+    return `${workspaceLayout.name} · ${String(dims.rows)} ${workspaceLayout.main.dataSource}${userBit} · main ${formatSelection(mainUi.selection)}${bottomBit}${historyHint()}${denied}`;
+  }
+
   function repaintAll(): void {
+    if (!isRegionVisible(effective, "main")) {
+      status.textContent = `${workspaceLayout.name} · main region denied`;
+      return;
+    }
+
     const mainLayout = computeGridLayout({
       rows: mainUi.paintBase.rows,
       cols: mainUi.paintBase.cols,
@@ -223,20 +369,22 @@ async function main(): Promise<void> {
       selection: mainUi.selection,
     });
 
-    bottomUi.layout = paintStaticGrid(bottomUi.ctx, {
-      ...bottomUi.paintBase,
-      source: bottomUi.grid,
-      selection: bottomUi.selection,
-    });
-    bottomUi.canvas.width = bottomUi.layout.totalWidth;
-    bottomUi.canvas.height = bottomUi.layout.totalHeight;
-    bottomUi.layout = paintStaticGrid(bottomUi.ctx, {
-      ...bottomUi.paintBase,
-      source: bottomUi.grid,
-      selection: bottomUi.selection,
-    });
+    if (isRegionVisible(effective, "bottom") && !bottomPanel.hidden) {
+      bottomUi.layout = paintStaticGrid(bottomUi.ctx, {
+        ...bottomUi.paintBase,
+        source: bottomUi.grid,
+        selection: bottomUi.selection,
+      });
+      bottomUi.canvas.width = bottomUi.layout.totalWidth;
+      bottomUi.canvas.height = bottomUi.layout.totalHeight;
+      bottomUi.layout = paintStaticGrid(bottomUi.ctx, {
+        ...bottomUi.paintBase,
+        source: bottomUi.grid,
+        selection: bottomUi.selection,
+      });
+    }
 
-    status.textContent = `${workspaceLayout.name} · ${String(dims.rows)} loans · main ${formatSelection(mainUi.selection)} · bottom ${formatSelection(bottomUi.selection)}${historyHint()}`;
+    status.textContent = statusLine();
   }
 
   function historyHint(): string {
@@ -254,6 +402,7 @@ async function main(): Promise<void> {
     if (!changed) {
       return;
     }
+    lastDeniedMessage = null;
     syncFormulaBar(mainUi);
     syncFormulaBar(bottomUi);
     repaintAll();
@@ -263,15 +412,25 @@ async function main(): Promise<void> {
     if (ui.selection === null) {
       return;
     }
+    const access = accessForSelection(ui);
+    const fieldId = fieldIdForSelection(ui);
     const activeSession =
       ui.session ?? beginEdit(ui.selection, formulaBarText(ui.grid, ui.selection));
     const withDraft = updateDraft(activeSession, ui.formulaInput.value);
-    commitEdit(ui.grid, withDraft);
+    const result = commitEditWithAccess(ui.grid, withDraft, access, fieldId);
     ui.session = null;
+    if (!result.ok) {
+      lastDeniedMessage = result.message;
+      ui.formulaInput.value = formulaBarText(ui.grid, ui.selection);
+      repaintAll();
+      return;
+    }
+    lastDeniedMessage = null;
     if (navKey !== null) {
       ui.selection = moveSelection(ui.selection, navKey, ui.bounds);
     }
     syncFormulaBar(ui);
+    refreshForm();
     // Main edits must refresh bottom Aggregate (cross-region reads).
     repaintAll();
   }
@@ -311,7 +470,11 @@ async function main(): Promise<void> {
         return;
       }
       ui.selection = hit;
+      lastDeniedMessage = null;
       syncFormulaBar(ui);
+      if (ui.region === "main") {
+        refreshForm();
+      }
       repaintAll();
       ui.canvas.focus();
     });
@@ -331,7 +494,11 @@ async function main(): Promise<void> {
         commitFromBar(ui, null);
       }
       ui.selection = moveSelection(ui.selection, event.key, ui.bounds);
+      lastDeniedMessage = null;
       syncFormulaBar(ui);
+      if (ui.region === "main") {
+        refreshForm();
+      }
       repaintAll();
     });
 
@@ -339,6 +506,15 @@ async function main(): Promise<void> {
       startSessionFromBar(ui);
     });
     ui.formulaInput.addEventListener("input", () => {
+      if (accessForSelection(ui) !== "edit") {
+        lastDeniedMessage =
+          fieldIdForSelection(ui) === undefined
+            ? "Cannot edit — field is not editable."
+            : `Cannot edit "${fieldIdForSelection(ui) ?? ""}" — access is view, not edit.`;
+        ui.formulaInput.value = formulaBarText(ui.grid, ui.selection);
+        status.textContent = statusLine();
+        return;
+      }
       startSessionFromBar(ui);
       if (ui.session !== null) {
         ui.session = updateDraft(ui.session, ui.formulaInput.value);
@@ -371,19 +547,6 @@ async function main(): Promise<void> {
     });
   }
 
-  wireRegion(mainUi);
-  wireRegion(bottomUi);
-  syncFormulaBar(mainUi);
-  syncFormulaBar(bottomUi);
-
-  let bottomTabs: BottomTabState = createBottomTabState(
-    workspaceLayout.bottom.activeTab,
-  );
-  let notesRows: NotesRow[] = createNotesRows([
-    { label: "Approval policy", value: "policy.pdf" },
-    { label: "Q1 review", value: "notes.docx" },
-  ]);
-
   function applyBottomTabUi(): void {
     const onAggregate = bottomTabs.active === "aggregate";
     tabAggregate.classList.toggle("active", onAggregate);
@@ -394,7 +557,6 @@ async function main(): Promise<void> {
     panelNotes.classList.toggle("active", !onAggregate);
     panelAggregate.hidden = !onAggregate;
     panelNotes.hidden = onAggregate;
-    // Keep Aggregate session/draft/canvas intact while Notes is shown.
   }
 
   function renderNotesTable(): void {
@@ -425,16 +587,89 @@ async function main(): Promise<void> {
   }
 
   function switchBottomTab(tab: "aggregate" | "notes"): void {
+    if (!isRegionVisible(effective, "bottom")) {
+      lastDeniedMessage = "Cannot access bottom region.";
+      status.textContent = statusLine();
+      return;
+    }
     bottomTabs = selectBottomTab(bottomTabs, tab);
     applyBottomTabUi();
     if (bottomTabs.active === "aggregate") {
-      // Restore Aggregate paint; Notes stay in memory via notesRows.
       repaintAll();
     } else {
       renderNotesTable();
     }
-    status.textContent = `${workspaceLayout.name} · ${String(dims.rows)} loans · bottom tab ${bottomTabs.active}`;
+    status.textContent = `${workspaceLayout.name} · ${String(dims.rows)} ${workspaceLayout.main.dataSource} · bottom tab ${bottomTabs.active}`;
   }
+
+  function seedFromBound(
+    layout: WorkspaceLayout,
+    grid: BoundMainGrid,
+  ): void {
+    rawWorkspace = create_workspace();
+    mainEngine = asRegionEditableGrid(rawWorkspace, "main");
+    bottomEngine = asRegionEditableGrid(rawWorkspace, "bottom");
+    mainUi.engineGrid = mainEngine;
+    bottomUi.engineGrid = bottomEngine;
+
+    workspaceLayout = layout;
+    boundRows = [...grid.rows];
+    dims = seedGridFromBoundMain(mainEngine, grid);
+    const engineNumeric = engineNumericColumns(workspaceLayout);
+    const bottomDims = seedBottomAggregate(
+      bottomEngine,
+      dims.rows,
+      dims.cols,
+      engineNumeric,
+    );
+    rawWorkspace.clear_history();
+
+    workspaceTitle.textContent = layout.name;
+    bottomUi.paintBase = {
+      ...bottomUi.paintBase,
+      rows: bottomDims.rows,
+      cols: bottomDims.cols,
+    };
+    mainUi.selection =
+      dims.rows > 0 ? { row: 0, col: 0 } : null;
+    bottomUi.selection =
+      bottomDims.rows > 0 ? { row: 0, col: 0 } : null;
+    mainUi.session = null;
+    bottomUi.session = null;
+
+    bottomTabs = createBottomTabState(layout.bottom.activeTab);
+    notesRows = createNotesRows(
+      layout.bottom.notes.fields.map((field) => ({
+        label: field.name,
+        value: "",
+      })),
+    );
+  }
+
+  async function activateLoanReview(): Promise<void> {
+    status.textContent = "Loading Loan Review…";
+
+    const loaded = await loadLoanReviewMain();
+    if (!loaded.ok) {
+      status.textContent = `Failed to load loans: ${loaded.error.message}. Is the mock server on :4000? (make up)`;
+      return;
+    }
+
+    populateUserSelect(sampleUsers);
+    seedFromBound(loaded.layout, loaded.grid);
+    applyBottomTabUi();
+    renderNotesTable();
+    applyPermissionsFromUser(userSelect.value);
+    mainUi.canvas.focus();
+  }
+
+
+  wireRegion(mainUi);
+  wireRegion(bottomUi);
+
+  userSelect.addEventListener("change", () => {
+    applyPermissionsFromUser(userSelect.value);
+  });
 
   tabAggregate.addEventListener("click", () => {
     switchBottomTab("aggregate");
@@ -443,15 +678,19 @@ async function main(): Promise<void> {
     switchBottomTab("notes");
   });
   bottomAddRow.addEventListener("click", () => {
+    if (!isRegionVisible(effective, "bottom")) {
+      lastDeniedMessage = "Cannot access bottom region.";
+      status.textContent = statusLine();
+      return;
+    }
     const target = bottomControlTarget(bottomTabs);
     if (target === "notes") {
       notesRows = addNotesRow(notesRows);
       renderNotesTable();
       return;
     }
-    // Aggregate add-row: grow an empty Aggregate row (engine-backed).
     const nextRow = bottomUi.paintBase.rows;
-    bottomUi.grid.set_cell(nextRow, 0, "");
+    bottomUi.engineGrid.set_cell(nextRow, 0, "");
     bottomUi.paintBase = {
       ...bottomUi.paintBase,
       rows: nextRow + 1,
@@ -467,10 +706,7 @@ async function main(): Promise<void> {
     repaintAll();
   });
 
-  applyBottomTabUi();
-  renderNotesTable();
-  repaintAll();
-  mainUi.canvas.focus();
+  await activateLoanReview();
 }
 
 main().catch((err: unknown) => {

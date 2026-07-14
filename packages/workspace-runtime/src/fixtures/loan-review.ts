@@ -41,4 +41,19 @@ export const LOAN_REVIEW_WORKSPACE: WorkspaceDefinition = {
       },
     },
   },
+  // docs/04 customer-info-form shape: two sections, not a flat field list.
+  form: {
+    sections: [
+      {
+        id: "customer",
+        title: "Customer Information",
+        fieldIds: ["borrower", "status"],
+      },
+      {
+        id: "additional",
+        title: "Additional Information",
+        fieldIds: ["overdue", "daysLate"],
+      },
+    ],
+  },
 };

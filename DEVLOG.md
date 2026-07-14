@@ -24,7 +24,7 @@ tried and abandoned — that's the whole point of this file existing.
   - **#36 / PR #43 — `@gridyard/workspace-runtime`:** permission resolution
     (workspace / region / field / layout) with core→company→department→user
     overlays; no auth, no UI enforcement, no mock-server permission JSON.
-  - **#37 — `web-demo` close-out:** restore Workspace undo/redo (shared
+  - **#37 / PR #44 — `web-demo` close-out:** restore Workspace undo/redo (shared
     stack across main+bottom); ⌘/Ctrl+Z / Shift+Z / Ctrl+Y; clear history
     after seed so fixture load isn't undoable.
 - Undo decision: one shared history for the whole `Workspace`, not

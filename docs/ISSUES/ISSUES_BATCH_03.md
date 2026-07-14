@@ -11,7 +11,7 @@ remain deferred.
 | 15 | [#34](https://github.com/madmmas/gridyard/issues/34) | Render the bottom region's Aggregate tab | [#41](https://github.com/madmmas/gridyard/pull/41) |
 | 16 | [#35](https://github.com/madmmas/gridyard/issues/35) | Bottom region's Notes tab and tab switching | [#42](https://github.com/madmmas/gridyard/pull/42) |
 | 17 | [#36](https://github.com/madmmas/gridyard/issues/36) | Permission engine (four levels, with inheritance) | [#43](https://github.com/madmmas/gridyard/pull/43) |
-| 18 | [#37](https://github.com/madmmas/gridyard/issues/37) | Wire the bottom region into the running demo | (this PR) |
+| 18 | [#37](https://github.com/madmmas/gridyard/issues/37) | Wire the bottom region into the running demo | [#44](https://github.com/madmmas/gridyard/pull/44) |
 
 Checked the live repo before writing these: all of batch 2 is merged
 (PRs #23–#31) — selection, keyboard nav, formula-bar editing wired to
@@ -216,7 +216,7 @@ None yet.
 
 ## 18. [apps/web-demo] Wire the bottom region into the running demo
 
-**Status:** done — closes #37 (demo already had main+bottom+tabs from
+**Status:** done — PR #44 / issue #37 (demo already had main+bottom+tabs from
 #34/#35; this restores Workspace undo/redo and batch close-out docs).
 
 ### Spec reference

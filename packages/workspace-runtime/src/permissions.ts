@@ -5,7 +5,8 @@
  * (view / edit / hidden), and layout (resize / personalize /
  * modify shared layout). Inheritance is core → company →
  * department → user — each overlay only replaces what it
- * explicitly sets. Auth/identity and UI enforcement are out of scope.
+ * explicitly sets. Auth/identity is out of scope; UI
+ * enforcement is in grid-renderer / web-demo (Batch 04 §19).
  */
 
 /** Per-field access mode. Distinct from region accessibility. */

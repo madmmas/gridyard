@@ -6,6 +6,8 @@
 import type {
   BoundCellValue,
   BoundMainGrid,
+  PermissionColumnProjection,
+  PermissionProjectedColumn,
   WorkspaceLayout,
 } from "@gridyard/workspace-runtime";
 import { colIndexToLetters } from "@gridyard/grid-renderer";
@@ -66,6 +68,8 @@ export function seedGridFromBoundMain(
 /**
  * Seeds bottom Aggregate with Total / Average label rows and `main!`
  * formulas over the currency / number columns (mockup-shaped).
+ *
+ * Column indices are engine indices (full layout), not paint indices.
  */
 export function seedBottomAggregate(
   grid: CellWriter,
@@ -99,7 +103,27 @@ export function paintConfigFromLayout(
   layout: WorkspaceLayout,
   rowCount: number,
 ): MainRegionPaintConfig {
-  const columns = layout.main.columns;
+  return paintConfigFromProjectedColumns(
+    rowCount,
+    layout.main.columns.map((column, paintColIndex) => ({
+      fieldId: column.fieldId,
+      name: column.name,
+      type: column.type,
+      engineColIndex: column.colIndex,
+      paintColIndex,
+      access: "edit" as const,
+    })),
+  );
+}
+
+/**
+ * Paint options for a permission-filtered column projection (hidden omitted).
+ * `numericColumns` uses paint indices.
+ */
+export function paintConfigFromProjectedColumns(
+  rowCount: number,
+  columns: readonly PermissionProjectedColumn[],
+): MainRegionPaintConfig {
   const numericColumns = new Set<number>();
   const columnNames: string[] = [];
   const columnWidths: number[] = [];
@@ -108,7 +132,7 @@ export function paintConfigFromLayout(
     columnNames.push(column.name);
     columnWidths.push(defaultColumnWidth(column.type));
     if (column.type === "number" || column.type === "currency") {
-      numericColumns.add(column.colIndex);
+      numericColumns.add(column.paintColIndex);
     }
   }
 
@@ -119,6 +143,27 @@ export function paintConfigFromLayout(
     columnWidths,
     numericColumns,
   };
+}
+
+/**
+ * Engine-index numeric set (for Aggregate formula seeding / full grid).
+ */
+export function engineNumericColumns(layout: WorkspaceLayout): Set<number> {
+  const numeric = new Set<number>();
+  for (const column of layout.main.columns) {
+    if (column.type === "number" || column.type === "currency") {
+      numeric.add(column.colIndex);
+    }
+  }
+  return numeric;
+}
+
+/** Convenience: paint config from a permission projection. */
+export function paintConfigFromPermissionProjection(
+  rowCount: number,
+  projection: PermissionColumnProjection,
+): MainRegionPaintConfig {
+  return paintConfigFromProjectedColumns(rowCount, projection.columns);
 }
 
 function defaultColumnWidth(

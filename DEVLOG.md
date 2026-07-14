@@ -11,6 +11,12 @@ tried and abandoned — that's the whole point of this file existing.
 
 ## 2026-07-14
 
+- Batch 04 §19 (`@gridyard/workspace-runtime` + `@gridyard/grid-renderer`):
+  `projectColumnsForPermissions` / `authorizeFieldEdit` + column remapping and
+  `commitEditWithAccess`. Sample Loan Review users in
+  `loan-review-permissions`. Demo user-switcher glue remains on
+  `backup/batch04-full-wip` until the dedicated web-demo follow-up lands.
+
 - Third issue batch (`docs/ISSUES/ISSUES_BATCH_03.md` §13–§18) landed on
   `main`:
   - **#32 / PR #39 — `gridyard-graph` + formula:** independent main/bottom

@@ -21,25 +21,25 @@ pub struct CellEditCommand {
     pub new_input: String,
 }
 
-/// Undo/redo history for single-cell edits.
+/// Undo/redo history for commands of type `C`.
 ///
 /// Pushing a new command clears the redo stack (linear history, not a
 /// branching undo tree). When the undo stack exceeds [`Self::limit`], the
 /// oldest entries are dropped.
 #[derive(Debug, Clone)]
-pub struct UndoStack {
-    undo: VecDeque<CellEditCommand>,
-    redo: VecDeque<CellEditCommand>,
+pub struct UndoStack<C> {
+    undo: VecDeque<C>,
+    redo: VecDeque<C>,
     limit: usize,
 }
 
-impl Default for UndoStack {
+impl<C> Default for UndoStack<C> {
     fn default() -> Self {
         Self::with_limit(DEFAULT_UNDO_LIMIT)
     }
 }
 
-impl UndoStack {
+impl<C> UndoStack<C> {
     /// Creates a stack with [`DEFAULT_UNDO_LIMIT`] (100) entries.
     pub fn new() -> Self {
         Self::default()
@@ -87,14 +87,14 @@ impl UndoStack {
         self.undo.clear();
         self.redo.clear();
     }
+}
 
-    /// Records a new edit. Clears redo; evicts from the front if over limit.
+impl<C: Clone> UndoStack<C> {
+    /// Records a new command. Clears redo; evicts from the front if over limit.
     ///
-    /// No-ops when `old_input == new_input` or when `limit` is `0`.
-    pub fn push(&mut self, command: CellEditCommand) {
-        if command.old_input == command.new_input {
-            return;
-        }
+    /// No-ops when `limit` is `0`. Callers that want to skip no-op edits
+    /// (identical old/new input) should filter before calling.
+    pub fn push(&mut self, command: C) {
         self.redo.clear();
         if self.limit == 0 {
             return;
@@ -105,24 +105,28 @@ impl UndoStack {
         }
     }
 
-    /// Pops the latest edit for undo and parks it on the redo stack.
-    ///
-    /// The caller should apply [`CellEditCommand::old_input`] to
-    /// [`CellEditCommand::cell`].
-    pub fn undo(&mut self) -> Option<CellEditCommand> {
+    /// Pops the latest command for undo and parks it on the redo stack.
+    pub fn undo(&mut self) -> Option<C> {
         let command = self.undo.pop_back()?;
         self.redo.push_back(command.clone());
         Some(command)
     }
 
-    /// Pops the latest undone edit for redo and parks it back on undo.
-    ///
-    /// The caller should apply [`CellEditCommand::new_input`] to
-    /// [`CellEditCommand::cell`].
-    pub fn redo(&mut self) -> Option<CellEditCommand> {
+    /// Pops the latest undone command for redo and parks it back on undo.
+    pub fn redo(&mut self) -> Option<C> {
         let command = self.redo.pop_back()?;
         self.undo.push_back(command.clone());
         Some(command)
+    }
+}
+
+impl UndoStack<CellEditCommand> {
+    /// Like [`Self::push`], but skips when `old_input == new_input`.
+    pub fn push_edit(&mut self, command: CellEditCommand) {
+        if command.old_input == command.new_input {
+            return;
+        }
+        self.push(command);
     }
 }
 
@@ -152,9 +156,9 @@ mod tests {
     #[test]
     fn undo_redo_chain_restores_inputs() {
         let mut stack = UndoStack::new();
-        stack.push(edit("A1", "", "1"));
-        stack.push(edit("A1", "1", "2"));
-        stack.push(edit("B1", "", "=A1+1"));
+        stack.push_edit(edit("A1", "", "1"));
+        stack.push_edit(edit("A1", "1", "2"));
+        stack.push_edit(edit("B1", "", "=A1+1"));
 
         let u1 = stack.undo().expect("undo B1");
         assert_eq!(u1.old_input, "");
@@ -172,12 +176,12 @@ mod tests {
     #[test]
     fn new_edit_after_undo_clears_redo() {
         let mut stack = UndoStack::new();
-        stack.push(edit("A1", "", "1"));
-        stack.push(edit("A1", "1", "2"));
+        stack.push_edit(edit("A1", "", "1"));
+        stack.push_edit(edit("A1", "1", "2"));
         assert!(stack.undo().is_some());
         assert!(stack.can_redo());
 
-        stack.push(edit("A1", "1", "9"));
+        stack.push_edit(edit("A1", "1", "9"));
         assert!(!stack.can_redo());
         assert_eq!(stack.undo_len(), 2);
 
@@ -189,16 +193,16 @@ mod tests {
     #[test]
     fn identical_old_and_new_are_not_recorded() {
         let mut stack = UndoStack::new();
-        stack.push(edit("A1", "x", "x"));
+        stack.push_edit(edit("A1", "x", "x"));
         assert!(!stack.can_undo());
     }
 
     #[test]
     fn bounded_history_evicts_oldest() {
         let mut stack = UndoStack::with_limit(2);
-        stack.push(edit("A1", "", "1"));
-        stack.push(edit("A1", "1", "2"));
-        stack.push(edit("A1", "2", "3"));
+        stack.push_edit(edit("A1", "", "1"));
+        stack.push_edit(edit("A1", "1", "2"));
+        stack.push_edit(edit("A1", "2", "3"));
         assert_eq!(stack.undo_len(), 2);
 
         let first_undo = stack.undo().expect("3→2");
@@ -212,7 +216,7 @@ mod tests {
     #[test]
     fn zero_limit_never_retains_history() {
         let mut stack = UndoStack::with_limit(0);
-        stack.push(edit("A1", "", "1"));
+        stack.push_edit(edit("A1", "", "1"));
         assert!(!stack.can_undo());
         assert!(!stack.can_redo());
     }
@@ -251,7 +255,7 @@ mod tests {
             let mut stack = UndoStack::new();
             for (step_idx, step) in steps.iter().enumerate() {
                 match *step {
-                    Step::Push(cell, old, new) => stack.push(edit(cell, old, new)),
+                    Step::Push(cell, old, new) => stack.push_edit(edit(cell, old, new)),
                     Step::Undo(expected_old) => {
                         let cmd = stack.undo().unwrap_or_else(|| {
                             panic!("case {case_idx} step {step_idx}: expected undo")

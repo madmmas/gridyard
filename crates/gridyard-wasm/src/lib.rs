@@ -141,6 +141,36 @@ impl Workspace {
             .get_input(region, row, col)
             .map_err(|e| JsValue::from_str(&e))
     }
+
+    /// Undoes the most recent cell edit (any region). Returns `true` when changed.
+    #[wasm_bindgen]
+    pub fn undo(&mut self) -> bool {
+        self.inner.undo()
+    }
+
+    /// Redoes the most recently undone cell edit. Returns `true` when changed.
+    #[wasm_bindgen]
+    pub fn redo(&mut self) -> bool {
+        self.inner.redo()
+    }
+
+    /// Returns whether [`Self::undo`] would apply a command.
+    #[wasm_bindgen(js_name = can_undo)]
+    pub fn can_undo(&self) -> bool {
+        self.inner.can_undo()
+    }
+
+    /// Returns whether [`Self::redo`] would apply a command.
+    #[wasm_bindgen(js_name = can_redo)]
+    pub fn can_redo(&self) -> bool {
+        self.inner.can_redo()
+    }
+
+    /// Clears undo/redo history without changing cell values.
+    #[wasm_bindgen(js_name = clear_history)]
+    pub fn clear_history(&mut self) {
+        self.inner.clear_history();
+    }
 }
 
 /// Creates an empty two-region workspace (`main` + `bottom`) for JavaScript.

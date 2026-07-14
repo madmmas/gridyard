@@ -1,15 +1,17 @@
 # Third issue batch — the bottom region and cross-region formulas
 
-**Batch status (2026-07-13):** issues opened on GitHub; not started.
+**Batch status (2026-07-14):** all six batch issues (§13–§18) closed on
+`main` (see PR column). Permission UI enforcement and type-to-edit (#25)
+remain deferred.
 
-| Batch § | GitHub | Title |
-|---------|--------|-------|
-| 13 | [#32](https://github.com/madmmas/gridyard/issues/32) | Independent per-region dependency graph and cross-region reads |
-| 14 | [#33](https://github.com/madmmas/gridyard/issues/33) | Multi-region WASM surface |
-| 15 | [#34](https://github.com/madmmas/gridyard/issues/34) | Render the bottom region's Aggregate tab |
-| 16 | [#35](https://github.com/madmmas/gridyard/issues/35) | Bottom region's Notes tab and tab switching |
-| 17 | [#36](https://github.com/madmmas/gridyard/issues/36) | Permission engine (four levels, with inheritance) |
-| 18 | [#37](https://github.com/madmmas/gridyard/issues/37) | Wire the bottom region into the running demo |
+| Batch § | GitHub | Title | PR |
+|---------|--------|-------|----|
+| 13 | [#32](https://github.com/madmmas/gridyard/issues/32) | Independent per-region dependency graph and cross-region reads | [#39](https://github.com/madmmas/gridyard/pull/39) |
+| 14 | [#33](https://github.com/madmmas/gridyard/issues/33) | Multi-region WASM surface | [#40](https://github.com/madmmas/gridyard/pull/40) |
+| 15 | [#34](https://github.com/madmmas/gridyard/issues/34) | Render the bottom region's Aggregate tab | [#41](https://github.com/madmmas/gridyard/pull/41) |
+| 16 | [#35](https://github.com/madmmas/gridyard/issues/35) | Bottom region's Notes tab and tab switching | [#42](https://github.com/madmmas/gridyard/pull/42) |
+| 17 | [#36](https://github.com/madmmas/gridyard/issues/36) | Permission engine (four levels, with inheritance) | [#43](https://github.com/madmmas/gridyard/pull/43) |
+| 18 | [#37](https://github.com/madmmas/gridyard/issues/37) | Wire the bottom region into the running demo | (this PR) |
 
 Checked the live repo before writing these: all of batch 2 is merged
 (PRs #23–#31) — selection, keyboard nav, formula-bar editing wired to
@@ -213,6 +215,9 @@ None yet.
 ---
 
 ## 18. [apps/web-demo] Wire the bottom region into the running demo
+
+**Status:** done — closes #37 (demo already had main+bottom+tabs from
+#34/#35; this restores Workspace undo/redo and batch close-out docs).
 
 ### Spec reference
 All of the above.

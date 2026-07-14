@@ -12,7 +12,7 @@ use gridyard_grid::{CellEditCommand, UndoStack};
 #[derive(Debug, Default)]
 pub struct GridHandle {
     engine: SheetEngine,
-    history: UndoStack,
+    history: UndoStack<CellEditCommand>,
 }
 
 impl GridHandle {
@@ -40,7 +40,7 @@ impl GridHandle {
         let old_input = self.engine.get_input(id);
         self.apply_input(id, input)?;
         let new_input = self.engine.get_input(id);
-        self.history.push(CellEditCommand {
+        self.history.push_edit(CellEditCommand {
             cell: id,
             old_input,
             new_input,
@@ -103,13 +103,24 @@ impl GridHandle {
     }
 }
 
+/// One workspace edit: region + cell + old/new input for undo/redo.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct WorkspaceEditCommand {
+    region: Region,
+    cell: CellId,
+    old_input: String,
+    new_input: String,
+}
+
 /// Thin facade over [`WorkspaceEngine`] with region-addressed `(row, col)`.
 ///
 /// Region names are `"main"` and `"bottom"` (case-insensitive). Cross-region
 /// formulas like `=main!A1` are evaluated by the underlying workspace engine.
+/// A single shared undo stack spans both regions (most recent edit first).
 #[derive(Debug, Default)]
 pub struct WorkspaceHandle {
     engine: WorkspaceEngine,
+    history: UndoStack<WorkspaceEditCommand>,
 }
 
 impl WorkspaceHandle {
@@ -117,6 +128,15 @@ impl WorkspaceHandle {
     pub fn new() -> Self {
         Self {
             engine: WorkspaceEngine::new(),
+            history: UndoStack::new(),
+        }
+    }
+
+    /// Creates a workspace whose undo stack keeps at most `limit` entries.
+    pub fn with_undo_limit(limit: usize) -> Self {
+        Self {
+            engine: WorkspaceEngine::new(),
+            history: UndoStack::with_limit(limit),
         }
     }
 
@@ -129,9 +149,19 @@ impl WorkspaceHandle {
         input: &str,
     ) -> Result<(), String> {
         let region = parse_region(region)?;
-        self.engine
-            .set_cell(region, cell_id(row, col), input)
-            .map_err(|e| e.to_string())
+        let id = cell_id(row, col);
+        let old_input = self.engine.get_input(region, id);
+        self.apply_input(region, id, input)?;
+        let new_input = self.engine.get_input(region, id);
+        if old_input != new_input {
+            self.history.push(WorkspaceEditCommand {
+                region,
+                cell: id,
+                old_input,
+                new_input,
+            });
+        }
+        Ok(())
     }
 
     /// Returns the computed value at `(region, row, col)`.
@@ -144,6 +174,47 @@ impl WorkspaceHandle {
     pub fn get_input(&self, region: &str, row: u32, col: u32) -> Result<String, String> {
         let region = parse_region(region)?;
         Ok(self.engine.get_input(region, cell_id(row, col)))
+    }
+
+    /// Reverts the most recent recorded edit (any region) and recalculates.
+    ///
+    /// Returns `true` when a command was applied.
+    pub fn undo(&mut self) -> bool {
+        let Some(command) = self.history.undo() else {
+            return false;
+        };
+        let _ = self.apply_input(command.region, command.cell, &command.old_input);
+        true
+    }
+
+    /// Re-applies the most recently undone edit. Returns `true` when applied.
+    pub fn redo(&mut self) -> bool {
+        let Some(command) = self.history.redo() else {
+            return false;
+        };
+        let _ = self.apply_input(command.region, command.cell, &command.new_input);
+        true
+    }
+
+    /// Returns `true` when [`Self::undo`] would change the workspace.
+    pub fn can_undo(&self) -> bool {
+        self.history.can_undo()
+    }
+
+    /// Returns `true` when [`Self::redo`] would change the workspace.
+    pub fn can_redo(&self) -> bool {
+        self.history.can_redo()
+    }
+
+    /// Drops undo/redo history without changing cell values.
+    pub fn clear_history(&mut self) {
+        self.history.clear();
+    }
+
+    fn apply_input(&mut self, region: Region, id: CellId, input: &str) -> Result<(), String> {
+        self.engine
+            .set_cell(region, id, input)
+            .map_err(|e| e.to_string())
     }
 }
 
@@ -299,5 +370,57 @@ mod tests {
         ws.set_cell("MAIN", 0, 0, "4").expect("MAIN");
         ws.set_cell("Bottom", 0, 0, "=main!A1").expect("Bottom");
         assert_eq!(ws.get_cell("BOTTOM", 0, 0).unwrap(), Value::Number(4.0));
+    }
+
+    #[test]
+    fn workspace_undo_cross_region_recalculates_dependents() {
+        let mut ws = WorkspaceHandle::new();
+        ws.set_cell("main", 0, 0, "10").expect("main A1");
+        ws.set_cell("bottom", 0, 0, "=main!A1*2")
+            .expect("bottom A1");
+        ws.set_cell("main", 0, 0, "7").expect("main edit");
+        assert_eq!(ws.get_cell("bottom", 0, 0).unwrap(), Value::Number(14.0));
+
+        assert!(ws.undo());
+        assert_eq!(ws.get_input("main", 0, 0).unwrap(), "10");
+        assert_eq!(ws.get_cell("bottom", 0, 0).unwrap(), Value::Number(20.0));
+
+        assert!(ws.redo());
+        assert_eq!(ws.get_input("main", 0, 0).unwrap(), "7");
+        assert_eq!(ws.get_cell("bottom", 0, 0).unwrap(), Value::Number(14.0));
+    }
+
+    #[test]
+    fn workspace_undo_spans_main_and_bottom_edits() {
+        let mut ws = WorkspaceHandle::new();
+        ws.set_cell("main", 0, 0, "1").expect("main");
+        ws.set_cell("bottom", 0, 0, "x").expect("bottom");
+        assert!(ws.undo());
+        assert_eq!(ws.get_input("bottom", 0, 0).unwrap(), "");
+        assert_eq!(ws.get_input("main", 0, 0).unwrap(), "1");
+        assert!(ws.undo());
+        assert_eq!(ws.get_input("main", 0, 0).unwrap(), "");
+    }
+
+    #[test]
+    fn workspace_clear_history_keeps_values() {
+        let mut ws = WorkspaceHandle::new();
+        ws.set_cell("main", 0, 0, "1").expect("A1");
+        ws.clear_history();
+        assert!(!ws.can_undo());
+        assert_eq!(ws.get_input("main", 0, 0).unwrap(), "1");
+    }
+
+    #[test]
+    fn workspace_new_edit_after_undo_clears_redo() {
+        let mut ws = WorkspaceHandle::new();
+        ws.set_cell("main", 0, 0, "1").expect("1");
+        ws.set_cell("main", 0, 0, "2").expect("2");
+        assert!(ws.undo());
+        assert!(ws.can_redo());
+        ws.set_cell("bottom", 0, 0, "y").expect("bottom");
+        assert!(!ws.can_redo());
+        assert!(ws.undo());
+        assert_eq!(ws.get_input("bottom", 0, 0).unwrap(), "");
     }
 }

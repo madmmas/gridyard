@@ -15,6 +15,11 @@ import {
   type GridLayout,
 } from "@gridyard/grid-renderer";
 
+import { loadLoanReviewMain } from "./load-loan-review.js";
+import {
+  paintConfigFromLayout,
+  seedGridFromBoundMain,
+} from "./seed-from-bound-grid.js";
 import init, { create_grid } from "./wasm-pkg/gridyard_wasm.js";
 
 async function main(): Promise<void> {
@@ -22,6 +27,7 @@ async function main(): Promise<void> {
   const canvasEl = document.getElementById("grid");
   const formulaInputEl = document.getElementById("formula-input");
   const formulaAddrEl = document.getElementById("formula-addr");
+  const workspaceTitleEl = document.getElementById("workspace-title");
   if (
     !(canvasEl instanceof HTMLCanvasElement) ||
     statusEl === null ||
@@ -40,43 +46,40 @@ async function main(): Promise<void> {
   }
   const ctx: CanvasRenderingContext2D = maybeCtx;
 
+  status.textContent = "Loading workspace + loans…";
+  const loaded = await loadLoanReviewMain();
+  if (!loaded.ok) {
+    status.textContent = `Failed to load loans: ${loaded.error.message}. Is the mock server on :4000? (make up)`;
+    return;
+  }
+  const workspaceLayout = loaded.layout;
+  const boundGrid = loaded.grid;
+
+  if (workspaceTitleEl !== null) {
+    workspaceTitleEl.textContent = workspaceLayout.name;
+  }
+
   await init();
   const rawGrid = create_grid();
   const grid = asEditableGrid(rawGrid);
 
-  // Loan-review-ish sheet; Status uses IF(days) so non-zero late days → Overdue.
-  // (Comparison operators are not in the v0.1 parser yet.)
-  const rows: Array<[string, string, string]> = [
-    ["Ada Lovelace", "1200", "12"],
-    ["Grace Hopper", "0", "0"],
-    ["Alan Turing", "800", "4"],
-  ];
-  for (let r = 0; r < rows.length; r += 1) {
-    const row = rows[r];
-    if (row === undefined) {
-      continue;
-    }
-    const [borrower, amount, days] = row;
-    const rowNum = String(r + 1);
-    grid.set_cell(r, 0, borrower);
-    grid.set_cell(r, 1, amount);
-    grid.set_cell(r, 3, days);
-    grid.set_cell(r, 2, `=IF(D${rowNum},"Overdue","Active")`);
-  }
+  const dims = seedGridFromBoundMain(grid, boundGrid);
   // Don't let the user undo into fixture seeding.
   rawGrid.clear_history();
 
-  const bounds = { rows: 3, cols: 4 };
-  let selection: CellAddress | null = { row: 0, col: 0 };
+  const paintConfig = paintConfigFromLayout(workspaceLayout, dims.rows);
+  const bounds = { rows: dims.rows, cols: dims.cols };
+  let selection: CellAddress | null =
+    dims.rows > 0 && dims.cols > 0 ? { row: 0, col: 0 } : null;
   let layout: GridLayout | null = null;
   let session: EditSession | null = null;
 
   const paintOptionsBase = {
-    rows: bounds.rows,
-    cols: bounds.cols,
-    columnNames: ["Borrower", "Amount", "Status", "Days late"],
-    columnWidths: [168, 90, 84, 90],
-    numericColumns: new Set([1, 3]),
+    rows: paintConfig.rows,
+    cols: paintConfig.cols,
+    columnNames: paintConfig.columnNames,
+    columnWidths: paintConfig.columnWidths,
+    numericColumns: paintConfig.numericColumns,
     source: grid,
   };
 
@@ -112,7 +115,7 @@ async function main(): Promise<void> {
       rawGrid.can_undo() || rawGrid.can_redo()
         ? ` · undo ${rawGrid.can_undo() ? "ready" : "—"} / redo ${rawGrid.can_redo() ? "ready" : "—"}`
         : "";
-    status.textContent = `Selected ${formatSelection(selection)}${valueHint}${hist}`;
+    status.textContent = `${workspaceLayout.name} · ${String(dims.rows)} loans · selected ${formatSelection(selection)}${valueHint}${hist}`;
   }
 
   function commitFromBar(navKey: "Enter" | "Tab" | null): void {

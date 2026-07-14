@@ -28,7 +28,7 @@
         background: var(--surface-0);
       }
       .wrap {
-        max-width: 520px;
+        max-width: 640px;
         margin: 0 auto;
       }
       .toolbar {
@@ -101,7 +101,7 @@
         <div class="badge">G</div>
         <strong>Gridyard</strong>
         <span style="color: var(--text-muted)">/</span>
-        <span style="color: var(--text-secondary)">Loan review</span>
+        <span style="color: var(--text-secondary)" id="workspace-title">Loan review</span>
       </div>
       <div class="panel">
         <div class="panel-header">main · edit · ⌘/Ctrl+Z undo · ⌘/Ctrl+Shift+Z redo</div>
@@ -115,13 +115,15 @@
             aria-label="Formula bar"
           />
         </div>
-        <canvas id="grid" width="458" height="154" tabindex="0" aria-label="Loan review grid"></canvas>
+        <canvas id="grid" width="458" height="280" tabindex="0" aria-label="Loan review grid"></canvas>
       </div>
-      <p class="hint" id="status">Loading WASM…</p>
+      <p class="hint" id="status">Loading workspace…</p>
       <p class="hint">
-        Click a cell to select. Edit the formula bar — Enter commits (and moves), Escape
-        cancels. Undo/redo with ⌘/Ctrl+Z and ⌘/Ctrl+Shift+Z (or Ctrl+Y). Invalid formulas
-        render as red error cells.
+        Data loads from the mock server (<code>/loans</code> via Vite → :4000). Run
+        <code>make up</code> (or <code>make mock-server</code>) alongside
+        <code>make demo</code>. Click to select; edit the formula bar — Enter commits,
+        Escape cancels. Try a formula like <code>=B1+100</code> on Overdue. Undo/redo:
+        ⌘/Ctrl+Z and ⌘/Ctrl+Shift+Z (or Ctrl+Y).
       </p>
     </div>
     <script type="module" src="/src/main.ts"></script>

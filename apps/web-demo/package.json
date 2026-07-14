@@ -8,6 +8,7 @@
   "scripts": {
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "build:wasm": "wasm-pack build ../../crates/gridyard-wasm --target web --out-dir ../../apps/web-demo/src/wasm-pkg --dev",
     "dev": "npm run build:wasm && vite",
     "build": "vite build",

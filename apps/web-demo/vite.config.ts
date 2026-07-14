@@ -41,12 +41,23 @@ function optionalWasmPkg(): Plugin {
   };
 }
 
+const mockApiProxy = {
+  "/loans": { target: "http://127.0.0.1:4000", changeOrigin: true },
+  "/employees": { target: "http://127.0.0.1:4000", changeOrigin: true },
+  "/invoices": { target: "http://127.0.0.1:4000", changeOrigin: true },
+} as const;
+
 export default defineConfig({
   root: ".",
   publicDir: "public",
   plugins: [optionalWasmPkg()],
   server: {
     port: 5173,
+    proxy: { ...mockApiProxy },
+  },
+  preview: {
+    port: 5173,
+    proxy: { ...mockApiProxy },
   },
   build: {
     outDir: "dist",

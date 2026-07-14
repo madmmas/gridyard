@@ -1,11 +1,17 @@
 import {
-  asGridDataSource,
+  asEditableGrid,
+  beginEdit,
+  cancelEdit,
   colIndexToLetters,
+  commitEdit,
+  formulaBarText,
   hitTestDataCell,
   isSelectionNavKey,
   moveSelection,
   paintStaticGrid,
+  updateDraft,
   type CellAddress,
+  type EditSession,
   type GridLayout,
 } from "@gridyard/grid-renderer";
 
@@ -14,11 +20,20 @@ import init, { create_grid } from "./wasm-pkg/gridyard_wasm.js";
 async function main(): Promise<void> {
   const statusEl = document.getElementById("status");
   const canvasEl = document.getElementById("grid");
-  if (!(canvasEl instanceof HTMLCanvasElement) || statusEl === null) {
-    throw new Error("expected #grid canvas and #status");
+  const formulaInputEl = document.getElementById("formula-input");
+  const formulaAddrEl = document.getElementById("formula-addr");
+  if (
+    !(canvasEl instanceof HTMLCanvasElement) ||
+    statusEl === null ||
+    !(formulaInputEl instanceof HTMLInputElement) ||
+    formulaAddrEl === null
+  ) {
+    throw new Error("expected #grid, #status, #formula-input, #formula-addr");
   }
   const canvas: HTMLCanvasElement = canvasEl;
   const status: HTMLElement = statusEl;
+  const formulaInput: HTMLInputElement = formulaInputEl;
+  const formulaAddr: HTMLElement = formulaAddrEl;
   const maybeCtx = canvas.getContext("2d");
   if (maybeCtx === null) {
     throw new Error("2d context unavailable");
@@ -26,7 +41,7 @@ async function main(): Promise<void> {
   const ctx: CanvasRenderingContext2D = maybeCtx;
 
   await init();
-  const grid = create_grid();
+  const grid = asEditableGrid(create_grid());
 
   // Loan-review-ish sheet; Status uses IF(days) so non-zero late days → Overdue.
   // (Comparison operators are not in the v0.1 parser yet.)
@@ -51,6 +66,7 @@ async function main(): Promise<void> {
   const bounds = { rows: 3, cols: 4 };
   let selection: CellAddress | null = { row: 0, col: 0 };
   let layout: GridLayout | null = null;
+  let session: EditSession | null = null;
 
   const paintOptionsBase = {
     rows: bounds.rows,
@@ -58,7 +74,7 @@ async function main(): Promise<void> {
     columnNames: ["Borrower", "Amount", "Status", "Days late"],
     columnWidths: [168, 90, 84, 90],
     numericColumns: new Set([1, 3]),
-    source: asGridDataSource(grid),
+    source: grid,
   };
 
   function formatSelection(active: CellAddress | null): string {
@@ -68,12 +84,54 @@ async function main(): Promise<void> {
     return `${colIndexToLetters(active.col)}${String(active.row + 1)}`;
   }
 
+  function syncFormulaBarFromGrid(): void {
+    formulaAddr.textContent = formatSelection(selection);
+    formulaInput.value = formulaBarText(grid, selection);
+    session = null;
+  }
+
+  function startSessionFromBar(): void {
+    if (selection === null || session !== null) {
+      return;
+    }
+    session = beginEdit(selection, formulaBarText(grid, selection));
+  }
+
   function repaint(): void {
     layout = paintStaticGrid(ctx, { ...paintOptionsBase, selection });
     canvas.width = layout.totalWidth;
     canvas.height = layout.totalHeight;
     layout = paintStaticGrid(ctx, { ...paintOptionsBase, selection });
-    status.textContent = `Selected ${formatSelection(selection)} — click a cell or use arrows / Enter / Tab`;
+    const active = selection === null ? null : grid.get_cell(selection.row, selection.col);
+    const valueHint =
+      active === null ? "" : ` · value ${JSON.stringify(active)}`;
+    status.textContent = `Selected ${formatSelection(selection)}${valueHint}`;
+  }
+
+  function commitFromBar(navKey: "Enter" | "Tab" | null): void {
+    if (selection === null) {
+      return;
+    }
+    const activeSession =
+      session ?? beginEdit(selection, formulaBarText(grid, selection));
+    const withDraft = updateDraft(activeSession, formulaInput.value);
+    commitEdit(grid, withDraft);
+    session = null;
+    if (navKey !== null) {
+      selection = moveSelection(selection, navKey, bounds);
+    }
+    syncFormulaBarFromGrid();
+    repaint();
+  }
+
+  function cancelFromBar(): void {
+    if (session === null) {
+      formulaInput.value = formulaBarText(grid, selection);
+      return;
+    }
+    const restored = cancelEdit(session);
+    session = null;
+    formulaInput.value = restored.input;
   }
 
   canvas.tabIndex = 0;
@@ -84,6 +142,11 @@ async function main(): Promise<void> {
     if (layout === null) {
       return;
     }
+    if (session !== null && formulaInput.value !== session.original) {
+      commitFromBar(null);
+    } else {
+      session = null;
+    }
     const rect = canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
@@ -92,6 +155,7 @@ async function main(): Promise<void> {
       return;
     }
     selection = hit;
+    syncFormulaBarFromGrid();
     repaint();
     canvas.focus();
   });
@@ -101,10 +165,46 @@ async function main(): Promise<void> {
       return;
     }
     event.preventDefault();
+    if (session !== null && formulaInput.value !== session.original) {
+      commitFromBar(null);
+    }
     selection = moveSelection(selection, event.key, bounds);
+    syncFormulaBarFromGrid();
     repaint();
   });
 
+  formulaInput.addEventListener("focus", () => {
+    startSessionFromBar();
+  });
+
+  formulaInput.addEventListener("input", () => {
+    startSessionFromBar();
+    if (session !== null) {
+      session = updateDraft(session, formulaInput.value);
+    }
+  });
+
+  formulaInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      commitFromBar("Enter");
+      canvas.focus();
+      return;
+    }
+    if (event.key === "Tab") {
+      event.preventDefault();
+      commitFromBar("Tab");
+      canvas.focus();
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      cancelFromBar();
+      canvas.focus();
+    }
+  });
+
+  syncFormulaBarFromGrid();
   repaint();
   canvas.focus();
 }

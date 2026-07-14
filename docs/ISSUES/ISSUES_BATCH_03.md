@@ -38,6 +38,8 @@ been untouched since scaffolding.
 
 ## 13. [gridyard-graph] Independent per-region dependency graph and cross-region reads
 
+**Status:** done — PR #39 / issue #32
+
 ### Spec reference
 `docs/04-layout-and-permission-engine-spec.md` — Cross-region formula references.
 
@@ -59,13 +61,13 @@ This issue is the engine-level foundation the rest of the batch builds on.
 - More than two regions — this is main + bottom only, per the current `docs/04`
 
 ### Acceptance criteria
-- [ ] Two independently-recalculating engines can coexist, each with correct dirty-marking within itself
-- [ ] A bottom-region formula referencing `main!A1` recalculates when `main`'s `A1` changes, without main's own graph needing to know bottom exists
-- [ ] A cross-region reference to a region/cell that doesn't exist yet resolves to a clear error value, not a panic
+- [x] Two independently-recalculating engines can coexist, each with correct dirty-marking within itself
+- [x] A bottom-region formula referencing `main!A1` recalculates when `main`'s `A1` changes, without main's own graph needing to know bottom exists
+- [x] A cross-region reference to a region/cell that doesn't exist yet resolves to a clear error value, not a panic
 
 ### Testing requirements
-- [ ] Table-driven tests: same-region recalculation (regression against #4's existing cases), cross-region propagation, missing-reference error case
-- [ ] `cargo fmt --check && cargo clippy -- -D warnings && cargo test --workspace` passes
+- [x] Table-driven tests: same-region recalculation (regression against #4's existing cases), cross-region propagation, missing-reference error case
+- [x] `cargo fmt --check && cargo clippy -- -D warnings && cargo test --workspace` passes
 
 ### Notes
 None yet.
@@ -73,6 +75,8 @@ None yet.
 ---
 
 ## 14. [gridyard-wasm] Multi-region WASM surface
+
+**Status:** done — PR #40 / issue #33
 
 ### Spec reference
 `docs/01-grid-engine-core-spec.md` (WASM boundary), `docs/04` (regions).
@@ -94,13 +98,13 @@ engine underneath.
 - Tabs (Aggregate vs. Notes) — that's a `grid-renderer`/UI-level concept per `docs/04`, not something the WASM layer needs to know about; Notes is unsynced/no-formula, so it doesn't need this engine at all (see issue #16)
 
 ### Acceptance criteria
-- [ ] A trivial JS snippet can create a two-region workspace, set a bottom-region cell referencing main, and read back the correct computed value
-- [ ] Editing main and re-reading the bottom cell reflects the update
-- [ ] Existing single-region `Grid` usage (from issue #5 onward) keeps working — don't break `web-demo`'s current main-only wiring while this lands
+- [x] A trivial JS snippet can create a two-region workspace, set a bottom-region cell referencing main, and read back the correct computed value
+- [x] Editing main and re-reading the bottom cell reflects the update
+- [x] Existing single-region `Grid` usage (from issue #5 onward) keeps working — don't break `web-demo`'s current main-only wiring while this lands
 
 ### Testing requirements
-- [ ] Rust-side tests for the new wrapper surface, mirroring issue #5's test style
-- [ ] `cargo test --workspace` passes; `wasm-pack build` still succeeds
+- [x] Rust-side tests for the new wrapper surface, mirroring issue #5's test style
+- [x] `cargo test --workspace` passes; `wasm-pack build` still succeeds
 
 ### Notes
 None yet.
@@ -108,6 +112,8 @@ None yet.
 ---
 
 ## 15. [grid-renderer] Render the bottom region's Aggregate tab
+
+**Status:** done — PR #41 / issue #34
 
 ### Spec reference
 `docs/04-layout-and-permission-engine-spec.md` — Dimension-synced grid regions, Spreadsheet-style headers.
@@ -130,13 +136,13 @@ look.
 - Column-width *editing* propagating live from main to bottom if main's columns are resized after initial layout — reuse whatever main's current widths are at render time; live-resize sync can be a follow-up if column resizing doesn't exist yet at all (check before scoping further)
 
 ### Acceptance criteria
-- [ ] Bottom's Aggregate tab renders with column widths visually matching main's, column-for-column
-- [ ] Editing a bottom-Aggregate cell with a `main!...` reference computes and displays correctly, using issue #14's WASM surface
-- [ ] Bottom and main are visually distinct regions (own border/background/header), never rendered as a single merged grid
+- [x] Bottom's Aggregate tab renders with column widths visually matching main's, column-for-column
+- [x] Editing a bottom-Aggregate cell with a `main!...` reference computes and displays correctly, using issue #14's WASM surface
+- [x] Bottom and main are visually distinct regions (own border/background/header), never rendered as a single merged grid
 
 ### Testing requirements
-- [ ] Vitest tests for the column-width-sync logic specifically (pure function: given main's layout, compute bottom's column positions)
-- [ ] `npm test --workspaces --if-present` and typecheck pass
+- [x] Vitest tests for the column-width-sync logic specifically (pure function: given main's layout, compute bottom's column positions)
+- [x] `npm test --workspaces --if-present` and typecheck pass
 
 ### Notes
 None yet.
@@ -144,6 +150,8 @@ None yet.
 ---
 
 ## 16. [grid-renderer] Bottom region's Notes tab and tab switching
+
+**Status:** done — PR #42 / issue #35
 
 ### Spec reference
 `docs/04-layout-and-permission-engine-spec.md` — Tabs within a region, spreadsheet-style headers (Notes as the exception).
@@ -165,13 +173,13 @@ by hand as a static reference before any of this engine work existed.
 - Persisting Notes content anywhere beyond in-memory for now (no backend write-back yet — matches main/Aggregate's current read-mostly state from batch 2)
 
 ### Acceptance criteria
-- [ ] Clicking a tab switches visible content without resizing or repositioning the bottom region
-- [ ] Notes content has no formula bar, no column letters, no row gutter — visually distinct from Aggregate, per spec
-- [ ] Add-row/add-column controls (if implemented elsewhere by this point) apply to whichever tab is currently active, not globally
+- [x] Clicking a tab switches visible content without resizing or repositioning the bottom region
+- [x] Notes content has no formula bar, no column letters, no row gutter — visually distinct from Aggregate, per spec
+- [x] Add-row/add-column controls (if implemented elsewhere by this point) apply to whichever tab is currently active, not globally
 
 ### Testing requirements
-- [ ] Vitest tests for tab-switching state logic
-- [ ] `npm test --workspaces --if-present` and typecheck pass
+- [x] Vitest tests for tab-switching state logic
+- [x] `npm test --workspaces --if-present` and typecheck pass
 
 ### Notes
 None yet.
@@ -179,6 +187,8 @@ None yet.
 ---
 
 ## 17. [workspace-runtime] Permission engine (four levels, with inheritance)
+
+**Status:** done — PR #43 / issue #36
 
 ### Spec reference
 `docs/04-layout-and-permission-engine-spec.md` — Permission engine, Permission inheritance.
@@ -194,20 +204,20 @@ of the rendering work above (issues #13–16) and could land in parallel.
 **In scope:**
 - The four permission levels from `docs/04`: workspace access, region access, field-level (view/edit/hidden), layout (resize/personalize/admin-only-shared-layout)
 - Layered inheritance: core → company → department → user, each level able to override the one above without forking the underlying workspace definition
-- A resolution function: given a user's position in that hierarchy plus the layered overrides, produce the effective permission set for a given field/region/layout action
+- A resolution function: given a user's hierarchy position plus the layered overrides, produce the effective permission set for a given field/region/layout action
 
 **Out of scope:**
 - Any actual auth/identity system — this takes a user's hierarchy position as an input, it doesn't determine it
 - UI enforcement (disabling buttons, hiding fields in `grid-renderer`) — that's a follow-up once this resolution logic exists and something calls it
 
 ### Acceptance criteria
-- [ ] A department-level override correctly overrides a company-level default without needing a forked workspace definition
-- [ ] Resolution order is deterministic and tested: core, then company, then department, then user, each layer only overriding what it explicitly sets
-- [ ] Field-level `hidden` and region-level access are represented distinctly (hidden fields vs. inaccessible regions aren't the same thing)
+- [x] A department-level override correctly overrides a company-level default without needing a forked workspace definition
+- [x] Resolution order is deterministic and tested: core, then company, then department, then user, each layer only overriding what it explicitly sets
+- [x] Field-level `hidden` and region-level access are represented distinctly (hidden fields vs. inaccessible regions aren't the same thing)
 
 ### Testing requirements
-- [ ] Vitest tests covering each inheritance layer overriding correctly, and a case with no overrides at any layer (falls through to core)
-- [ ] `npm test --workspaces --if-present` and typecheck pass
+- [x] Vitest tests covering each inheritance layer overriding correctly, and a case with no overrides at any layer (falls through to core)
+- [x] `npm test --workspaces --if-present` and typecheck pass
 
 ### Notes
 None yet.
@@ -236,13 +246,13 @@ covered by unit tests.
 - Permission enforcement in the UI — issue #17 delivers the resolution logic, but wiring it into what the demo actually shows/hides can be its own follow-up once this batch proves the rendering path works unrestricted
 
 ### Acceptance criteria
-- [ ] The running demo visually matches the two-region structure in `docs/workspace-ui-mockup.html` (main + bottom with tabs), now backed by real computed values instead of hand-typed mock numbers
-- [ ] Editing a loan amount in main updates bottom's Aggregate totals live
-- [ ] Switching to Notes and back preserves Aggregate's state
+- [x] The running demo visually matches the two-region structure in `docs/workspace-ui-mockup.html` (main + bottom with tabs), now backed by real computed values instead of hand-typed mock numbers
+- [x] Editing a loan amount in main updates bottom's Aggregate totals live
+- [x] Switching to Notes and back preserves Aggregate's state
 
 ### Testing requirements
-- [ ] Whatever unit tests make sense for new `web-demo` glue code
-- [ ] `npm test --workspaces --if-present`, typecheck, and `npm run build --workspaces --if-present` all pass
+- [x] Whatever unit tests make sense for new `web-demo` glue code
+- [x] `npm test --workspaces --if-present`, typecheck, and `npm run build --workspaces --if-present` all pass
 
 ### Notes
 Same as batch 2's closing issue: worth a manual click-through in an actual browser before calling this done, not just a green CI run.

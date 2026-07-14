@@ -104,7 +104,7 @@
         <span style="color: var(--text-secondary)">Loan review</span>
       </div>
       <div class="panel">
-        <div class="panel-header">main · select, edit in formula bar, Enter commits</div>
+        <div class="panel-header">main · edit · ⌘/Ctrl+Z undo · ⌘/Ctrl+Shift+Z redo</div>
         <div class="formula-bar">
           <span class="addr" id="formula-addr">A1</span>
           <input
@@ -120,7 +120,8 @@
       <p class="hint" id="status">Loading WASM…</p>
       <p class="hint">
         Click a cell to select. Edit the formula bar — Enter commits (and moves), Escape
-        cancels. Invalid formulas render as red error cells.
+        cancels. Undo/redo with ⌘/Ctrl+Z and ⌘/Ctrl+Shift+Z (or Ctrl+Y). Invalid formulas
+        render as red error cells.
       </p>
     </div>
     <script type="module" src="/src/main.ts"></script>

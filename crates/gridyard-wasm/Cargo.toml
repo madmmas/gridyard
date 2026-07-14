@@ -12,6 +12,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 gridyard-core = { path = "../gridyard-core" }
 gridyard-graph = { path = "../gridyard-graph" }
+gridyard-grid = { path = "../gridyard-grid" }
 js-sys = "0.3"
 wasm-bindgen = "0.2"
 

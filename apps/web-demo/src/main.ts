@@ -41,7 +41,8 @@ async function main(): Promise<void> {
   const ctx: CanvasRenderingContext2D = maybeCtx;
 
   await init();
-  const grid = asEditableGrid(create_grid());
+  const rawGrid = create_grid();
+  const grid = asEditableGrid(rawGrid);
 
   // Loan-review-ish sheet; Status uses IF(days) so non-zero late days → Overdue.
   // (Comparison operators are not in the v0.1 parser yet.)
@@ -62,6 +63,8 @@ async function main(): Promise<void> {
     grid.set_cell(r, 3, days);
     grid.set_cell(r, 2, `=IF(D${rowNum},"Overdue","Active")`);
   }
+  // Don't let the user undo into fixture seeding.
+  rawGrid.clear_history();
 
   const bounds = { rows: 3, cols: 4 };
   let selection: CellAddress | null = { row: 0, col: 0 };
@@ -105,7 +108,11 @@ async function main(): Promise<void> {
     const active = selection === null ? null : grid.get_cell(selection.row, selection.col);
     const valueHint =
       active === null ? "" : ` · value ${JSON.stringify(active)}`;
-    status.textContent = `Selected ${formatSelection(selection)}${valueHint}`;
+    const hist =
+      rawGrid.can_undo() || rawGrid.can_redo()
+        ? ` · undo ${rawGrid.can_undo() ? "ready" : "—"} / redo ${rawGrid.can_redo() ? "ready" : "—"}`
+        : "";
+    status.textContent = `Selected ${formatSelection(selection)}${valueHint}${hist}`;
   }
 
   function commitFromBar(navKey: "Enter" | "Tab" | null): void {
@@ -132,6 +139,20 @@ async function main(): Promise<void> {
     const restored = cancelEdit(session);
     session = null;
     formulaInput.value = restored.input;
+  }
+
+  function applyHistory(kind: "undo" | "redo"): void {
+    session = null;
+    const changed = kind === "undo" ? rawGrid.undo() : rawGrid.redo();
+    if (!changed) {
+      return;
+    }
+    syncFormulaBarFromGrid();
+    repaint();
+  }
+
+  function isMod(event: KeyboardEvent): boolean {
+    return event.metaKey || event.ctrlKey;
   }
 
   canvas.tabIndex = 0;
@@ -161,6 +182,16 @@ async function main(): Promise<void> {
   });
 
   canvas.addEventListener("keydown", (event) => {
+    if (isMod(event) && event.key.toLowerCase() === "z") {
+      event.preventDefault();
+      applyHistory(event.shiftKey ? "redo" : "undo");
+      return;
+    }
+    if (isMod(event) && event.key.toLowerCase() === "y") {
+      event.preventDefault();
+      applyHistory("redo");
+      return;
+    }
     if (!isSelectionNavKey(event.key)) {
       return;
     }
@@ -185,6 +216,16 @@ async function main(): Promise<void> {
   });
 
   formulaInput.addEventListener("keydown", (event) => {
+    if (isMod(event) && event.key.toLowerCase() === "z") {
+      event.preventDefault();
+      applyHistory(event.shiftKey ? "redo" : "undo");
+      return;
+    }
+    if (isMod(event) && event.key.toLowerCase() === "y") {
+      event.preventDefault();
+      applyHistory("redo");
+      return;
+    }
     if (event.key === "Enter") {
       event.preventDefault();
       commitFromBar("Enter");

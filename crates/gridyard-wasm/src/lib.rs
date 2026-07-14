@@ -50,6 +50,36 @@ impl Grid {
     pub fn get_input(&self, row: u32, col: u32) -> String {
         self.inner.get_input(row, col)
     }
+
+    /// Undoes the most recent cell edit. Returns `true` when something changed.
+    #[wasm_bindgen]
+    pub fn undo(&mut self) -> bool {
+        self.inner.undo()
+    }
+
+    /// Redoes the most recently undone cell edit. Returns `true` when something changed.
+    #[wasm_bindgen]
+    pub fn redo(&mut self) -> bool {
+        self.inner.redo()
+    }
+
+    /// Returns whether [`Self::undo`] would apply a command.
+    #[wasm_bindgen(js_name = can_undo)]
+    pub fn can_undo(&self) -> bool {
+        self.inner.can_undo()
+    }
+
+    /// Returns whether [`Self::redo`] would apply a command.
+    #[wasm_bindgen(js_name = can_redo)]
+    pub fn can_redo(&self) -> bool {
+        self.inner.can_redo()
+    }
+
+    /// Clears undo/redo history without changing cell values.
+    #[wasm_bindgen(js_name = clear_history)]
+    pub fn clear_history(&mut self) {
+        self.inner.clear_history();
+    }
 }
 
 /// Creates an empty grid for use from JavaScript.

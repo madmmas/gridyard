@@ -18,6 +18,8 @@ export const GRID_THEME = {
   border: "#e4e4e7",
   surface0: "#ffffff",
   surface1: "#f4f4f5",
+  /** Softer fill for the bottom Aggregate region body (visually distinct). */
+  surfaceBottom: "#fafafa",
   /** Active selection fill (`--bg-accent` in the mockup). */
   selectionFill: "#e6f1fb",
   /** Active selection border (`--fill-accent` in the mockup). */
@@ -26,15 +28,22 @@ export const GRID_THEME = {
   textDanger: "#791f1f",
 } as const;
 
+export type GridRegionChrome = "main" | "bottom";
+
 export interface PaintStaticGridOptions extends GridLayoutInput {
   /** Human-readable field names for the name row (one per column). */
   columnNames: readonly string[];
-  /** Live grid data — typically a `gridyard-wasm` `Grid`. */
+  /** Live grid data — typically a `gridyard-wasm` `Grid` or region adapter. */
   source: GridDataSource;
   /** Columns whose values should be right-aligned (like mockup `.num`). */
   numericColumns?: ReadonlySet<number>;
   /** Single active cell to highlight; omit or `null` for none. */
   selection?: CellAddress | null;
+  /**
+   * Visual chrome variant. `bottom` uses a distinct body background so the
+   * Aggregate region never reads as a merged frozen pane with main.
+   */
+  chrome?: GridRegionChrome;
 }
 
 /**
@@ -49,10 +58,12 @@ export function paintStaticGrid(
 ): GridLayout {
   const layout = computeGridLayout(options);
   const { rows, cols, columnNames, source, numericColumns, selection } = options;
+  const chrome = options.chrome ?? "main";
+  const bodyFill = chrome === "bottom" ? GRID_THEME.surfaceBottom : GRID_THEME.surface0;
 
   ctx.save();
   ctx.clearRect(0, 0, layout.totalWidth, layout.totalHeight);
-  ctx.fillStyle = GRID_THEME.surface0;
+  ctx.fillStyle = bodyFill;
   ctx.fillRect(0, 0, layout.totalWidth, layout.totalHeight);
 
   paintHeaderBackground(ctx, layout);
@@ -63,6 +74,11 @@ export function paintStaticGrid(
   paintBody(ctx, layout, rows, cols, source, numericColumns ?? new Set());
   paintGridLines(ctx, layout, rows, cols);
   paintSelectionBorder(ctx, layout, rows, cols, selection ?? null);
+
+  // Outer border so each region reads as its own panel, not a shared pane.
+  ctx.strokeStyle = GRID_THEME.border;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(0.5, 0.5, layout.totalWidth - 1, layout.totalHeight - 1);
 
   ctx.restore();
   return layout;

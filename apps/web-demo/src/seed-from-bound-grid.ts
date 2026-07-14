@@ -8,8 +8,9 @@ import type {
   BoundMainGrid,
   WorkspaceLayout,
 } from "@gridyard/workspace-runtime";
+import { colIndexToLetters } from "@gridyard/grid-renderer";
 
-/** Minimal grid write surface (WASM Grid / EditableGrid). */
+/** Minimal grid write surface (WASM Grid / region EditableGrid). */
 export interface CellWriter {
   set_cell(row: number, col: number, input: string): void;
 }
@@ -60,6 +61,37 @@ export function seedGridFromBoundMain(
   }
 
   return { rows, cols };
+}
+
+/**
+ * Seeds bottom Aggregate with Total / Average label rows and `main!`
+ * formulas over the currency / number columns (mockup-shaped).
+ */
+export function seedBottomAggregate(
+  grid: CellWriter,
+  mainRows: number,
+  cols: number,
+  numericColumns: ReadonlySet<number>,
+): { rows: number; cols: number } {
+  const lastMainRow = Math.max(mainRows, 1);
+  const rangeEnd = String(lastMainRow);
+
+  grid.set_cell(0, 0, `Total (${String(mainRows)})`);
+  grid.set_cell(1, 0, "Average");
+
+  for (let c = 1; c < cols; c += 1) {
+    if (!numericColumns.has(c)) {
+      grid.set_cell(0, c, "—");
+      grid.set_cell(1, c, "—");
+      continue;
+    }
+    const letters = colIndexToLetters(c);
+    const range = `main!${letters}1:${letters}${rangeEnd}`;
+    grid.set_cell(0, c, `=SUM(${range})`);
+    grid.set_cell(1, c, `=AVERAGE(${range})`);
+  }
+
+  return { rows: 2, cols };
 }
 
 /** Paint options for the main region derived from the workspace layout. */

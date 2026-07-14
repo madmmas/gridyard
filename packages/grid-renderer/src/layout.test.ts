@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { columnLeft, computeGridLayout, dataCellRect } from "./layout.js";
+import {
+  columnLeft,
+  columnPositionsMatch,
+  computeBottomLayoutFromMain,
+  computeGridLayout,
+  dataCellRect,
+} from "./layout.js";
 
 describe("computeGridLayout", () => {
   it("sizes a mockup-like 4×3 grid", () => {
@@ -55,5 +61,63 @@ describe("dataCellRect", () => {
       height: 34,
     });
     expect(columnLeft(layout, 1)).toBe(126);
+  });
+});
+
+describe("computeBottomLayoutFromMain", () => {
+  it("locks bottom column widths and left edges to main", () => {
+    const main = computeGridLayout({
+      rows: 7,
+      cols: 4,
+      columnWidths: [168, 90, 84, 90],
+      gutterWidth: 26,
+      refRowHeight: 22,
+      nameRowHeight: 30,
+      rowHeight: 34,
+    });
+    const bottom = computeBottomLayoutFromMain(main, 3);
+
+    expect(bottom.columnWidths).toEqual(main.columnWidths);
+    expect(bottom.bodyHeight).toBe(3 * 34);
+    expect(bottom.totalHeight).not.toBe(main.totalHeight);
+    expect(columnPositionsMatch(main, bottom)).toBe(true);
+
+    for (let c = 0; c < 4; c += 1) {
+      expect(columnLeft(bottom, c)).toBe(columnLeft(main, c));
+    }
+  });
+
+  it("keeps independent row metrics when overridden", () => {
+    const main = computeGridLayout({
+      rows: 5,
+      cols: 2,
+      columnWidths: [120, 80],
+      rowHeight: 34,
+    });
+    const bottom = computeBottomLayoutFromMain(main, 2, { rowHeight: 28 });
+    expect(bottom.columnWidths).toEqual([120, 80]);
+    expect(bottom.rowHeight).toBe(28);
+    expect(bottom.bodyHeight).toBe(56);
+    expect(columnPositionsMatch(main, bottom)).toBe(true);
+  });
+
+  it("rejects negative bottom rows", () => {
+    const main = computeGridLayout({ rows: 1, cols: 1 });
+    expect(() => computeBottomLayoutFromMain(main, -1)).toThrow(RangeError);
+  });
+
+  it("columnPositionsMatch fails when a width drifts", () => {
+    const main = computeGridLayout({
+      rows: 1,
+      cols: 2,
+      columnWidths: [100, 80],
+    });
+    const drifted = computeGridLayout({
+      rows: 2,
+      cols: 2,
+      columnWidths: [100, 81],
+      gutterWidth: main.gutterWidth,
+    });
+    expect(columnPositionsMatch(main, drifted)).toBe(false);
   });
 });

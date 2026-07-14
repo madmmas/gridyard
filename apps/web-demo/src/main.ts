@@ -1,9 +1,11 @@
 import {
-  asEditableGrid,
+  asRegionEditableGrid,
   beginEdit,
   cancelEdit,
   colIndexToLetters,
   commitEdit,
+  computeBottomLayoutFromMain,
+  computeGridLayout,
   formulaBarText,
   hitTestDataCell,
   isSelectionNavKey,
@@ -12,39 +14,66 @@ import {
   updateDraft,
   type CellAddress,
   type EditSession,
+  type EditableGrid,
   type GridLayout,
+  type WorkspaceRegion,
 } from "@gridyard/grid-renderer";
 
 import { loadLoanReviewMain } from "./load-loan-review.js";
 import {
   paintConfigFromLayout,
+  seedBottomAggregate,
   seedGridFromBoundMain,
 } from "./seed-from-bound-grid.js";
-import init, { create_grid } from "./wasm-pkg/gridyard_wasm.js";
+import init, { create_workspace } from "./wasm-pkg/gridyard_wasm.js";
+
+interface RegionUi {
+  region: WorkspaceRegion;
+  canvas: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D;
+  formulaInput: HTMLInputElement;
+  formulaAddr: HTMLElement;
+  grid: EditableGrid;
+  bounds: { rows: number; cols: number };
+  selection: CellAddress | null;
+  layout: GridLayout | null;
+  session: EditSession | null;
+  paintBase: {
+    rows: number;
+    cols: number;
+    columnNames: readonly string[];
+    columnWidths: readonly number[];
+    numericColumns: ReadonlySet<number>;
+    chrome: "main" | "bottom";
+  };
+}
 
 async function main(): Promise<void> {
   const statusEl = document.getElementById("status");
-  const canvasEl = document.getElementById("grid");
-  const formulaInputEl = document.getElementById("formula-input");
-  const formulaAddrEl = document.getElementById("formula-addr");
+  const mainCanvasEl = document.getElementById("main-grid");
+  const bottomCanvasEl = document.getElementById("bottom-grid");
+  const mainFormulaInputEl = document.getElementById("main-formula-input");
+  const bottomFormulaInputEl = document.getElementById("bottom-formula-input");
+  const mainFormulaAddrEl = document.getElementById("main-formula-addr");
+  const bottomFormulaAddrEl = document.getElementById("bottom-formula-addr");
   const workspaceTitleEl = document.getElementById("workspace-title");
   if (
-    !(canvasEl instanceof HTMLCanvasElement) ||
+    !(mainCanvasEl instanceof HTMLCanvasElement) ||
+    !(bottomCanvasEl instanceof HTMLCanvasElement) ||
     statusEl === null ||
-    !(formulaInputEl instanceof HTMLInputElement) ||
-    formulaAddrEl === null
+    !(mainFormulaInputEl instanceof HTMLInputElement) ||
+    !(bottomFormulaInputEl instanceof HTMLInputElement) ||
+    mainFormulaAddrEl === null ||
+    bottomFormulaAddrEl === null
   ) {
-    throw new Error("expected #grid, #status, #formula-input, #formula-addr");
+    throw new Error("expected main/bottom grid + formula bar elements");
   }
-  const canvas: HTMLCanvasElement = canvasEl;
   const status: HTMLElement = statusEl;
-  const formulaInput: HTMLInputElement = formulaInputEl;
-  const formulaAddr: HTMLElement = formulaAddrEl;
-  const maybeCtx = canvas.getContext("2d");
-  if (maybeCtx === null) {
+  const mainCtx = mainCanvasEl.getContext("2d");
+  const bottomCtx = bottomCanvasEl.getContext("2d");
+  if (mainCtx === null || bottomCtx === null) {
     throw new Error("2d context unavailable");
   }
-  const ctx: CanvasRenderingContext2D = maybeCtx;
 
   status.textContent = "Loading workspace + loans…";
   const loaded = await loadLoanReviewMain();
@@ -60,27 +89,61 @@ async function main(): Promise<void> {
   }
 
   await init();
-  const rawGrid = create_grid();
-  const grid = asEditableGrid(rawGrid);
+  const rawWorkspace = create_workspace();
+  const mainGrid = asRegionEditableGrid(rawWorkspace, "main");
+  const bottomGrid = asRegionEditableGrid(rawWorkspace, "bottom");
 
-  const dims = seedGridFromBoundMain(grid, boundGrid);
-  // Don't let the user undo into fixture seeding.
-  rawGrid.clear_history();
-
+  const dims = seedGridFromBoundMain(mainGrid, boundGrid);
   const paintConfig = paintConfigFromLayout(workspaceLayout, dims.rows);
-  const bounds = { rows: dims.rows, cols: dims.cols };
-  let selection: CellAddress | null =
-    dims.rows > 0 && dims.cols > 0 ? { row: 0, col: 0 } : null;
-  let layout: GridLayout | null = null;
-  let session: EditSession | null = null;
+  const bottomDims = seedBottomAggregate(
+    bottomGrid,
+    dims.rows,
+    dims.cols,
+    paintConfig.numericColumns,
+  );
 
-  const paintOptionsBase = {
-    rows: paintConfig.rows,
-    cols: paintConfig.cols,
-    columnNames: paintConfig.columnNames,
-    columnWidths: paintConfig.columnWidths,
-    numericColumns: paintConfig.numericColumns,
-    source: grid,
+  const mainUi: RegionUi = {
+    region: "main",
+    canvas: mainCanvasEl,
+    ctx: mainCtx,
+    formulaInput: mainFormulaInputEl,
+    formulaAddr: mainFormulaAddrEl,
+    grid: mainGrid,
+    bounds: { rows: dims.rows, cols: dims.cols },
+    selection:
+      dims.rows > 0 && dims.cols > 0 ? { row: 0, col: 0 } : null,
+    layout: null,
+    session: null,
+    paintBase: {
+      rows: paintConfig.rows,
+      cols: paintConfig.cols,
+      columnNames: paintConfig.columnNames,
+      columnWidths: paintConfig.columnWidths,
+      numericColumns: paintConfig.numericColumns,
+      chrome: "main",
+    },
+  };
+
+  const bottomUi: RegionUi = {
+    region: "bottom",
+    canvas: bottomCanvasEl,
+    ctx: bottomCtx,
+    formulaInput: bottomFormulaInputEl,
+    formulaAddr: bottomFormulaAddrEl,
+    grid: bottomGrid,
+    bounds: { rows: bottomDims.rows, cols: bottomDims.cols },
+    selection:
+      bottomDims.rows > 0 && bottomDims.cols > 0 ? { row: 0, col: 0 } : null,
+    layout: null,
+    session: null,
+    paintBase: {
+      rows: bottomDims.rows,
+      cols: bottomDims.cols,
+      columnNames: paintConfig.columnNames,
+      columnWidths: paintConfig.columnWidths,
+      numericColumns: paintConfig.numericColumns,
+      chrome: "bottom",
+    },
   };
 
   function formatSelection(active: CellAddress | null): string {
@@ -90,167 +153,169 @@ async function main(): Promise<void> {
     return `${colIndexToLetters(active.col)}${String(active.row + 1)}`;
   }
 
-  function syncFormulaBarFromGrid(): void {
-    formulaAddr.textContent = formatSelection(selection);
-    formulaInput.value = formulaBarText(grid, selection);
-    session = null;
+  function syncFormulaBar(ui: RegionUi): void {
+    ui.formulaAddr.textContent = formatSelection(ui.selection);
+    ui.formulaInput.value = formulaBarText(ui.grid, ui.selection);
+    ui.session = null;
   }
 
-  function startSessionFromBar(): void {
-    if (selection === null || session !== null) {
+  function startSessionFromBar(ui: RegionUi): void {
+    if (ui.selection === null || ui.session !== null) {
       return;
     }
-    session = beginEdit(selection, formulaBarText(grid, selection));
+    ui.session = beginEdit(ui.selection, formulaBarText(ui.grid, ui.selection));
   }
 
-  function repaint(): void {
-    layout = paintStaticGrid(ctx, { ...paintOptionsBase, selection });
-    canvas.width = layout.totalWidth;
-    canvas.height = layout.totalHeight;
-    layout = paintStaticGrid(ctx, { ...paintOptionsBase, selection });
-    const active = selection === null ? null : grid.get_cell(selection.row, selection.col);
-    const valueHint =
-      active === null ? "" : ` · value ${JSON.stringify(active)}`;
-    const hist =
-      rawGrid.can_undo() || rawGrid.can_redo()
-        ? ` · undo ${rawGrid.can_undo() ? "ready" : "—"} / redo ${rawGrid.can_redo() ? "ready" : "—"}`
-        : "";
-    status.textContent = `${workspaceLayout.name} · ${String(dims.rows)} loans · selected ${formatSelection(selection)}${valueHint}${hist}`;
+  function repaintAll(): void {
+    const mainLayout = computeGridLayout({
+      rows: mainUi.paintBase.rows,
+      cols: mainUi.paintBase.cols,
+      columnWidths: mainUi.paintBase.columnWidths,
+    });
+    const bottomSynced = computeBottomLayoutFromMain(
+      mainLayout,
+      bottomUi.paintBase.rows,
+    );
+    bottomUi.paintBase = {
+      ...bottomUi.paintBase,
+      columnWidths: bottomSynced.columnWidths,
+    };
+
+    mainUi.layout = paintStaticGrid(mainUi.ctx, {
+      ...mainUi.paintBase,
+      source: mainUi.grid,
+      selection: mainUi.selection,
+    });
+    mainUi.canvas.width = mainUi.layout.totalWidth;
+    mainUi.canvas.height = mainUi.layout.totalHeight;
+    mainUi.layout = paintStaticGrid(mainUi.ctx, {
+      ...mainUi.paintBase,
+      source: mainUi.grid,
+      selection: mainUi.selection,
+    });
+
+    bottomUi.layout = paintStaticGrid(bottomUi.ctx, {
+      ...bottomUi.paintBase,
+      source: bottomUi.grid,
+      selection: bottomUi.selection,
+    });
+    bottomUi.canvas.width = bottomUi.layout.totalWidth;
+    bottomUi.canvas.height = bottomUi.layout.totalHeight;
+    bottomUi.layout = paintStaticGrid(bottomUi.ctx, {
+      ...bottomUi.paintBase,
+      source: bottomUi.grid,
+      selection: bottomUi.selection,
+    });
+
+    status.textContent = `${workspaceLayout.name} · ${String(dims.rows)} loans · main ${formatSelection(mainUi.selection)} · bottom ${formatSelection(bottomUi.selection)}`;
   }
 
-  function commitFromBar(navKey: "Enter" | "Tab" | null): void {
-    if (selection === null) {
+  function commitFromBar(ui: RegionUi, navKey: "Enter" | "Tab" | null): void {
+    if (ui.selection === null) {
       return;
     }
     const activeSession =
-      session ?? beginEdit(selection, formulaBarText(grid, selection));
-    const withDraft = updateDraft(activeSession, formulaInput.value);
-    commitEdit(grid, withDraft);
-    session = null;
+      ui.session ?? beginEdit(ui.selection, formulaBarText(ui.grid, ui.selection));
+    const withDraft = updateDraft(activeSession, ui.formulaInput.value);
+    commitEdit(ui.grid, withDraft);
+    ui.session = null;
     if (navKey !== null) {
-      selection = moveSelection(selection, navKey, bounds);
+      ui.selection = moveSelection(ui.selection, navKey, ui.bounds);
     }
-    syncFormulaBarFromGrid();
-    repaint();
+    syncFormulaBar(ui);
+    // Main edits must refresh bottom Aggregate (cross-region reads).
+    repaintAll();
   }
 
-  function cancelFromBar(): void {
-    if (session === null) {
-      formulaInput.value = formulaBarText(grid, selection);
+  function cancelFromBar(ui: RegionUi): void {
+    if (ui.session === null) {
+      ui.formulaInput.value = formulaBarText(ui.grid, ui.selection);
       return;
     }
-    const restored = cancelEdit(session);
-    session = null;
-    formulaInput.value = restored.input;
+    const restored = cancelEdit(ui.session);
+    ui.session = null;
+    ui.formulaInput.value = restored.input;
   }
 
-  function applyHistory(kind: "undo" | "redo"): void {
-    session = null;
-    const changed = kind === "undo" ? rawGrid.undo() : rawGrid.redo();
-    if (!changed) {
-      return;
-    }
-    syncFormulaBarFromGrid();
-    repaint();
+  function wireRegion(ui: RegionUi): void {
+    ui.canvas.tabIndex = 0;
+    ui.canvas.style.outline = "none";
+    ui.canvas.style.cursor = "cell";
+
+    ui.canvas.addEventListener("pointerdown", (event) => {
+      if (ui.layout === null) {
+        return;
+      }
+      if (ui.session !== null && ui.formulaInput.value !== ui.session.original) {
+        commitFromBar(ui, null);
+      } else {
+        ui.session = null;
+      }
+      const rect = ui.canvas.getBoundingClientRect();
+      const hit = hitTestDataCell(
+        ui.layout,
+        event.clientX - rect.left,
+        event.clientY - rect.top,
+        ui.bounds,
+      );
+      if (hit === null) {
+        return;
+      }
+      ui.selection = hit;
+      syncFormulaBar(ui);
+      repaintAll();
+      ui.canvas.focus();
+    });
+
+    ui.canvas.addEventListener("keydown", (event) => {
+      if (!isSelectionNavKey(event.key)) {
+        return;
+      }
+      event.preventDefault();
+      if (ui.session !== null && ui.formulaInput.value !== ui.session.original) {
+        commitFromBar(ui, null);
+      }
+      ui.selection = moveSelection(ui.selection, event.key, ui.bounds);
+      syncFormulaBar(ui);
+      repaintAll();
+    });
+
+    ui.formulaInput.addEventListener("focus", () => {
+      startSessionFromBar(ui);
+    });
+    ui.formulaInput.addEventListener("input", () => {
+      startSessionFromBar(ui);
+      if (ui.session !== null) {
+        ui.session = updateDraft(ui.session, ui.formulaInput.value);
+      }
+    });
+    ui.formulaInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        commitFromBar(ui, "Enter");
+        ui.canvas.focus();
+        return;
+      }
+      if (event.key === "Tab") {
+        event.preventDefault();
+        commitFromBar(ui, "Tab");
+        ui.canvas.focus();
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        cancelFromBar(ui);
+        ui.canvas.focus();
+      }
+    });
   }
 
-  function isMod(event: KeyboardEvent): boolean {
-    return event.metaKey || event.ctrlKey;
-  }
-
-  canvas.tabIndex = 0;
-  canvas.style.outline = "none";
-  canvas.style.cursor = "cell";
-
-  canvas.addEventListener("pointerdown", (event) => {
-    if (layout === null) {
-      return;
-    }
-    if (session !== null && formulaInput.value !== session.original) {
-      commitFromBar(null);
-    } else {
-      session = null;
-    }
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    const hit = hitTestDataCell(layout, x, y, bounds);
-    if (hit === null) {
-      return;
-    }
-    selection = hit;
-    syncFormulaBarFromGrid();
-    repaint();
-    canvas.focus();
-  });
-
-  canvas.addEventListener("keydown", (event) => {
-    if (isMod(event) && event.key.toLowerCase() === "z") {
-      event.preventDefault();
-      applyHistory(event.shiftKey ? "redo" : "undo");
-      return;
-    }
-    if (isMod(event) && event.key.toLowerCase() === "y") {
-      event.preventDefault();
-      applyHistory("redo");
-      return;
-    }
-    if (!isSelectionNavKey(event.key)) {
-      return;
-    }
-    event.preventDefault();
-    if (session !== null && formulaInput.value !== session.original) {
-      commitFromBar(null);
-    }
-    selection = moveSelection(selection, event.key, bounds);
-    syncFormulaBarFromGrid();
-    repaint();
-  });
-
-  formulaInput.addEventListener("focus", () => {
-    startSessionFromBar();
-  });
-
-  formulaInput.addEventListener("input", () => {
-    startSessionFromBar();
-    if (session !== null) {
-      session = updateDraft(session, formulaInput.value);
-    }
-  });
-
-  formulaInput.addEventListener("keydown", (event) => {
-    if (isMod(event) && event.key.toLowerCase() === "z") {
-      event.preventDefault();
-      applyHistory(event.shiftKey ? "redo" : "undo");
-      return;
-    }
-    if (isMod(event) && event.key.toLowerCase() === "y") {
-      event.preventDefault();
-      applyHistory("redo");
-      return;
-    }
-    if (event.key === "Enter") {
-      event.preventDefault();
-      commitFromBar("Enter");
-      canvas.focus();
-      return;
-    }
-    if (event.key === "Tab") {
-      event.preventDefault();
-      commitFromBar("Tab");
-      canvas.focus();
-      return;
-    }
-    if (event.key === "Escape") {
-      event.preventDefault();
-      cancelFromBar();
-      canvas.focus();
-    }
-  });
-
-  syncFormulaBarFromGrid();
-  repaint();
-  canvas.focus();
+  wireRegion(mainUi);
+  wireRegion(bottomUi);
+  syncFormulaBar(mainUi);
+  syncFormulaBar(bottomUi);
+  repaintAll();
+  mainUi.canvas.focus();
 }
 
 main().catch((err: unknown) => {

@@ -18,7 +18,15 @@ declare module "*gridyard_wasm.js" {
     free(): void;
   }
 
+  export class Workspace {
+    set_cell(region: string, row: number, col: number, input: string): void;
+    get_cell(region: string, row: number, col: number): unknown;
+    get_input(region: string, row: number, col: number): string;
+    free(): void;
+  }
+
   export function create_grid(): Grid;
+  export function create_workspace(): Workspace;
 
   export default function init(moduleOrPath?: unknown): Promise<unknown>;
 }

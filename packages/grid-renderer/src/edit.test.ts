@@ -5,6 +5,7 @@ import {
   beginEdit,
   cancelEdit,
   commitEdit,
+  commitEditWithAccess,
   formulaBarText,
   updateDraft,
   type EditableGrid,
@@ -115,5 +116,53 @@ describe("asEditableGrid", () => {
     expect(editable.get_input(1, 2)).toBe("=A1");
     editable.set_cell(0, 1, "9");
     expect(set_cell).toHaveBeenCalledWith(0, 1, "9");
+  });
+});
+
+describe("commitEditWithAccess", () => {
+  it("commits when access is edit (full-access path unchanged)", () => {
+    const { grid, setCell } = mockEditableGrid({
+      "0,1": { input: "10", value: { type: "number", value: 10 } },
+    });
+    const session = updateDraft(beginEdit({ row: 0, col: 1 }, "10"), "20");
+    const result = commitEditWithAccess(grid, session, "edit", "overdue");
+    expect(result).toEqual({
+      ok: true,
+      address: { row: 0, col: 1 },
+      input: "20",
+    });
+    expect(setCell).toHaveBeenCalledWith(0, 1, "20");
+  });
+
+  it("rejects view-only edits with a clear signal and never calls set_cell", () => {
+    const { grid, setCell } = mockEditableGrid({
+      "0,1": { input: "10", value: { type: "number", value: 10 } },
+    });
+    const session = updateDraft(beginEdit({ row: 0, col: 1 }, "10"), "999");
+    const result = commitEditWithAccess(grid, session, "view", "overdue");
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error("expected denial");
+    }
+    expect(result.reason).toBe("permission-denied");
+    expect(result.access).toBe("view");
+    expect(result.fieldId).toBe("overdue");
+    expect(result.message).toMatch(/view/i);
+    expect(setCell).not.toHaveBeenCalled();
+    expect(grid.get_input(0, 1)).toBe("10");
+  });
+
+  it("rejects hidden-field edits without writing", () => {
+    const { grid, setCell } = mockEditableGrid({
+      "0,3": { input: "5", value: { type: "number", value: 5 } },
+    });
+    const session = updateDraft(beginEdit({ row: 0, col: 3 }, "5"), "6");
+    const result = commitEditWithAccess(grid, session, "hidden", "daysLate");
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error("expected denial");
+    }
+    expect(result.message).toMatch(/hidden/i);
+    expect(setCell).not.toHaveBeenCalled();
   });
 });

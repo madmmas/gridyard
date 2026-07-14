@@ -2,8 +2,8 @@
 //
 // Paints fixed-size main / bottom Aggregate regions (ref row, name row,
 // row gutter, cell values) from a `gridyard-wasm`-compatible source, with
-// single-cell selection + keyboard navigation helpers. Bottom column
-// widths sync from main via `computeBottomLayoutFromMain`.
+// selection, keyboard navigation, and permission-aware edit/commit. Bottom
+// column widths sync from main via `computeBottomLayoutFromMain`.
 
 export { colIndexToLetters, rowIndexToLabel } from "./address.js";
 export { formatCellValue } from "./format.js";
@@ -27,11 +27,18 @@ export {
   beginEdit,
   cancelEdit,
   commitEdit,
+  commitEditWithAccess,
   formulaBarText,
   updateDraft,
+  type CommitEditResult,
+  type EditFieldAccess,
   type EditableGrid,
   type EditSession,
 } from "./edit.js";
+export {
+  remapEditableGrid,
+  remapGridDataSource,
+} from "./column-map.js";
 export {
   asRegionDataSource,
   asRegionEditableGrid,

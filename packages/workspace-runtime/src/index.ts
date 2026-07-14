@@ -21,6 +21,11 @@ export {
   type BoundRow,
 } from "./binding.js";
 export { LOAN_REVIEW_WORKSPACE } from "./fixtures/loan-review.js";
+export {
+  LOAN_REVIEW_PERMISSIONS,
+  LOAN_REVIEW_SAMPLE_USERS,
+  type SamplePermissionUser,
+} from "./fixtures/loan-review-permissions.js";
 export { parseWorkspaceDefinition } from "./parse.js";
 export {
   canAccessRegion,
@@ -39,6 +44,16 @@ export {
   type PermissionLayers,
   type PermissionOverride,
 } from "./permissions.js";
+export {
+  accessForPaintColumn,
+  authorizeFieldEdit,
+  fieldIdForPaintColumn,
+  isRegionVisible,
+  projectColumnsForPermissions,
+  type FieldEditDecision,
+  type PermissionColumnProjection,
+  type PermissionProjectedColumn,
+} from "./permission-ui.js";
 export {
   createRestDataAdapter,
   type RestDataAdapterOptions,

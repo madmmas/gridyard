@@ -59,6 +59,52 @@ export function commitEdit(
 }
 
 /**
+ * Field-level access for edit gating. Mirrors workspace-runtime’s
+ * `FieldAccess` without taking a package dependency.
+ */
+export type EditFieldAccess = "view" | "edit" | "hidden";
+
+/**
+ * Outcome of a permission-gated commit. Denial never calls `set_cell`.
+ */
+export type CommitEditResult =
+  | { ok: true; address: CellAddress; input: string }
+  | {
+      ok: false;
+      reason: "permission-denied";
+      access: EditFieldAccess;
+      fieldId?: string;
+      message: string;
+    };
+
+/**
+ * Commits only when `access === "edit"`. View / hidden attempts return a
+ * clear denial signal instead of a silent no-op or crash.
+ */
+export function commitEditWithAccess(
+  grid: EditableGrid,
+  session: EditSession,
+  access: EditFieldAccess,
+  fieldId?: string,
+): CommitEditResult {
+  if (access !== "edit") {
+    const label = fieldId === undefined ? "field" : `"${fieldId}"`;
+    return {
+      ok: false,
+      reason: "permission-denied",
+      access,
+      fieldId,
+      message:
+        access === "hidden"
+          ? `Cannot edit hidden ${label}.`
+          : `Cannot edit ${label} — access is view, not edit.`,
+    };
+  }
+  const committed = commitEdit(grid, session);
+  return { ok: true, ...committed };
+}
+
+/**
  * Reads the formula-bar text for the active selection from the grid.
  * Empty selection → `""`.
  */

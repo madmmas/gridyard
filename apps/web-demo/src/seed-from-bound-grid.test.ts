@@ -1,12 +1,19 @@
 import { describe, expect, it } from "vitest";
 
 import type { BoundMainGrid, WorkspaceLayout } from "@gridyard/workspace-runtime";
-import { LOAN_REVIEW_WORKSPACE, parseWorkspaceDefinition } from "@gridyard/workspace-runtime";
+import {
+  LOAN_REVIEW_PERMISSIONS,
+  LOAN_REVIEW_WORKSPACE,
+  parseWorkspaceDefinition,
+  projectColumnsForPermissions,
+  resolvePermissions,
+} from "@gridyard/workspace-runtime";
 
 import { loadLoanReviewMain } from "./load-loan-review.js";
 import {
   boundValueToInput,
   paintConfigFromLayout,
+  paintConfigFromPermissionProjection,
   seedBottomAggregate,
   seedGridFromBoundMain,
 } from "./seed-from-bound-grid.js";
@@ -76,6 +83,24 @@ describe("paintConfigFromLayout", () => {
     expect([...config.numericColumns].sort((a, b) => a - b)).toEqual([1, 3]);
   });
 });
+
+describe("paintConfigFromPermissionProjection", () => {
+  it("omits hidden daysLate and remaps paint numeric indices", () => {
+    const casey = resolvePermissions(LOAN_REVIEW_PERMISSIONS, {
+      userId: "casey",
+    });
+    const projection = projectColumnsForPermissions(
+      loanLayout().main.columns,
+      casey,
+    );
+    const config = paintConfigFromPermissionProjection(7, projection);
+    expect(config.cols).toBe(3);
+    expect(config.columnNames).not.toContain("Days late");
+    // Overdue stays paint index 1; daysLate (was 3) is gone.
+    expect([...config.numericColumns].sort((a, b) => a - b)).toEqual([1]);
+  });
+});
+
 
 describe("seedBottomAggregate", () => {
   it("writes Total/Average labels and main! SUM/AVERAGE formulas", () => {

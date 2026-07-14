@@ -20,7 +20,7 @@ generalizes or just happens to work for one dataset.
 
 | Batch § | GitHub | Title | PR |
 |---------|--------|-------|----|
-| 19 | [#45](https://github.com/madmmas/gridyard/issues/45) | Enforce permission-engine output in the UI | — |
+| 19 | [#45](https://github.com/madmmas/gridyard/issues/45) | Enforce permission-engine output in the UI | (this PR) |
 | 20 | [#49](https://github.com/madmmas/gridyard/issues/49) | Form engine — render bound data as a structured form | — |
 | 21 | [#50](https://github.com/madmmas/gridyard/issues/50) | Second example domain — Employee Management | — |
 | 22 | [#46](https://github.com/madmmas/gridyard/issues/46) | Virtual rendering for large grids | — |
@@ -30,6 +30,8 @@ generalizes or just happens to work for one dataset.
 ---
 
 ## 19. [web-demo, grid-renderer] Enforce permission-engine output in the UI
+
+**Status:** in progress — issue [#45](https://github.com/madmmas/gridyard/issues/45) (package projection + edit guards; demo switcher follow-up from WIP)
 
 ### Spec reference
 `docs/04-layout-and-permission-engine-spec.md` — Permission engine (levels + inheritance).

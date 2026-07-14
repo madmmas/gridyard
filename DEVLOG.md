@@ -11,6 +11,11 @@ tried and abandoned — that's the whole point of this file existing.
 
 ## 2026-07-14
 
+- Batch 04 §24 (`@gridyard/grid-renderer`): in-region literal/substring search
+  helpers (`beginSearch` / next/prev/clear + `scrollTopForSearchMatch`) and
+  paint highlight options already on §22. Demo search chrome still not wired —
+  APIs + vitest only. Stacked on §23 rAF batching / §22 viewport.
+
 - Batch 04 §23 (`@gridyard/grid-renderer`): `createPaintScheduler()` coalesces
   per-region paints onto the next animation frame so cascading dirties run one
   paint per region per frame (last paint fn wins). Stacked on §22 virtualization.

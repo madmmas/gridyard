@@ -3,8 +3,8 @@
 // Paints fixed-size main / bottom Aggregate regions (ref row, name row,
 // row gutter, cell values) from a `gridyard-wasm`-compatible source, with
 // selection, keyboard navigation, permission-aware edit/commit, viewport
-// row virtualization, and rAF paint coalescing. Bottom column widths sync
-// from main via `computeBottomLayoutFromMain`.
+// row virtualization, rAF paint coalescing, and in-region search highlight.
+// Bottom column widths sync from main via `computeBottomLayoutFromMain`.
 
 export { colIndexToLetters, rowIndexToLabel } from "./address.js";
 export { formatCellValue } from "./format.js";
@@ -86,3 +86,17 @@ export {
   type CreatePaintSchedulerOptions,
   type PaintScheduler,
 } from "./paint-batch.js";
+
+export {
+  activeSearchMatch,
+  beginSearch,
+  clearSearch,
+  findSearchMatches,
+  nextSearchMatch,
+  prevSearchMatch,
+  scrollTopForSearchMatch,
+  type FindMatchesInput,
+  type SearchMatch,
+  type SearchState,
+  type ScrollForSearchInput,
+} from "./search.js";

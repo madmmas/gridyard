@@ -62,4 +62,34 @@ describe("paintStaticGrid virtual viewport", () => {
     // Two columns per visible row.
     expect(reads.length).toBe(rowsRead.size * 2);
   });
+
+  it("paints search highlights without reading off-screen matches", () => {
+    const reads: Array<[number, number]> = [];
+    const source: GridDataSource = {
+      get_cell(row, col): CellJsValue {
+        reads.push([row, col]);
+        return { type: "text", value: "hit" };
+      },
+    };
+    const headerHeight = 52;
+    const rowHeight = 34;
+    paintStaticGrid(mockCtx(), {
+      rows: 200,
+      cols: 1,
+      columnNames: ["A"],
+      source,
+      viewport: {
+        scrollTop: 0,
+        height: headerHeight + rowHeight * 4,
+        overscan: 0,
+      },
+      searchMatches: [
+        { row: 1, col: 0 },
+        { row: 150, col: 0 },
+      ],
+      activeSearchMatch: { row: 1, col: 0 },
+    });
+    expect(reads.every(([r]) => r < 10)).toBe(true);
+    expect(reads.some(([r]) => r === 150)).toBe(false);
+  });
 });

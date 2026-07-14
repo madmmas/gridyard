@@ -25,7 +25,7 @@ generalizes or just happens to work for one dataset.
 | 21 | [#50](https://github.com/madmmas/gridyard/issues/50) | Second example domain — Employee Management | — |
 | 22 | [#46](https://github.com/madmmas/gridyard/issues/46) | Virtual rendering for large grids | [#53](https://github.com/madmmas/gridyard/pull/53) |
 | 23 | [#47](https://github.com/madmmas/gridyard/issues/47) | requestAnimationFrame batching for repaints | [#52](https://github.com/madmmas/gridyard/pull/52) |
-| 24 | [#48](https://github.com/madmmas/gridyard/issues/48) | Search UI | — |
+| 24 | [#48](https://github.com/madmmas/gridyard/issues/48) | Search UI | (this PR) |
 
 ---
 

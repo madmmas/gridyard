@@ -4,7 +4,8 @@
  *
  * Region model matches the current two-region layout in
  * `docs/04-layout-and-permission-engine-spec.md` (main + bottom with
- * Aggregate / Notes tabs). Permissions and data binding are out of scope.
+ * Aggregate / Notes tabs). Permission resolution lives in
+ * `permissions.ts`; data binding in `binding.ts`.
  */
 
 /** Supported field types for v0.1 workspace definitions. */

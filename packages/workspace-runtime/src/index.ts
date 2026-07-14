@@ -23,6 +23,23 @@ export {
 export { LOAN_REVIEW_WORKSPACE } from "./fixtures/loan-review.js";
 export { parseWorkspaceDefinition } from "./parse.js";
 export {
+  canAccessRegion,
+  canAccessWorkspace,
+  canEditField,
+  getFieldAccess,
+  isFieldHidden,
+  mergePermissionLayers,
+  resolvePermissions,
+  type EffectivePermissions,
+  type FieldAccess,
+  type HierarchyPosition,
+  type LayeredPermissionDefinition,
+  type LayoutPermissions,
+  type PermissionBaseline,
+  type PermissionLayers,
+  type PermissionOverride,
+} from "./permissions.js";
+export {
   createRestDataAdapter,
   type RestDataAdapterOptions,
 } from "./rest-adapter.js";

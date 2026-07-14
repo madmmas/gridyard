@@ -11,7 +11,31 @@ tried and abandoned — that's the whole point of this file existing.
 
 ## 2026-07-13
 
-- First issue batch (`docs/ISSUES_BATCH_01.md` #1–#6) landed on `main`:
+- Second issue batch (`docs/ISSUES/ISSUES_BATCH_02.md` §7–§12) landed on
+  `main`:
+  - **#17 / PR #23 — `@gridyard/grid-renderer`:** single-cell selection +
+    keyboard nav (`moveSelection`, hit-test, paint highlight).
+  - **#18 / PR #24 — editing:** formula bar ↔ WASM `set_cell` / `get_input`;
+    soft-fail bad formulas → `#VALUE!`; error cells painted red.
+  - **#19 / PR #27 — `gridyard-grid` + WASM:** bounded undo/redo stack
+    (depth 100); demo ⌘/Ctrl+Z / Shift+Z / Ctrl+Y.
+  - **#20 / PR #28 — `@gridyard/workspace-runtime`:** parse/validate
+    workspace JSON → layout; Aggregate `syncedFromMain` + `fieldId`;
+    `LOAN_REVIEW_WORKSPACE` fixture.
+  - **#21 / PR #29 — REST adapter:** transport-agnostic `DataAdapter` +
+    binding path → cells; `createRestDataAdapter` for mock `/loans`;
+    typed fetch errors (no unhandled rejections); read-only (no write-back).
+  - **#22 / PR #30 — `web-demo`:** schema + REST + renderer + edit + undo
+    e2e on real loans; Vite proxies `/loans` → `:4000`. Run `make up` +
+    `make demo`.
+- Edit UX decision: formula-bar-only typing is enough for this milestone.
+  Spreadsheet-like type-to-edit / `F2` / double-click / in-cell caret is
+  tracked as deferred [#25](https://github.com/madmmas/gridyard/issues/25) —
+  leave it until demo edit friction bites; prefer bottom-region next batch
+  otherwise.
+- Issue batches live under `docs/ISSUES/` (paths moved from
+  `docs/ISSUES_BATCH_*.md`).
+- First issue batch (`docs/ISSUES/ISSUES_BATCH_01.md` #1–#6) landed on `main`:
   - **#1 / PR #9 — `gridyard-core`:** `Value`, `ErrorKind`, `Cell`,
     `SparseGrid`; empty cells never stored; coercion helpers for formula
     eval.

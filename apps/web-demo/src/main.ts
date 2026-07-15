@@ -3,10 +3,12 @@ import {
   asRegionEditableGrid,
   beginEdit,
   beginEditFromCanvasStart,
+  beginSearch,
   bottomControlTarget,
   cancelEdit,
   canvasEditStartFromKey,
   clampSelection,
+  clearSearch,
   colIndexToLetters,
   commitEditWithAccess,
   computeBottomLayoutFromMain,
@@ -18,8 +20,11 @@ import {
   hitTestDataCell,
   isSelectionNavKey,
   moveSelection,
+  nextSearchMatch,
   paintStaticGrid,
+  prevSearchMatch,
   remapEditableGrid,
+  activeSearchMatch,
   scrollTopToRevealRow,
   selectBottomTab,
   updateDraft,
@@ -32,6 +37,7 @@ import {
   type EditableGrid,
   type GridLayout,
   type NotesRow,
+  type SearchState,
   type WorkspaceRegion,
 } from "@gridyard/grid-renderer";
 import {
@@ -62,6 +68,10 @@ import {
   paintViewportFromScrollHost,
   sizeScrollSpacer,
 } from "./scroll-host.js";
+import {
+  formatSearchStatus,
+  revealActiveSearchMatch,
+} from "./search-chrome.js";
 import {
   engineNumericColumns,
   paintConfigFromPermissionProjection,
@@ -143,6 +153,11 @@ async function main(): Promise<void> {
   const mainScrollHostEl = document.getElementById("main-scroll-host");
   const mainScrollSpacerEl = document.getElementById("main-scroll-spacer");
   const largeDatasetEl = document.getElementById("large-dataset");
+  const mainSearchInputEl = document.getElementById("main-search-input");
+  const mainSearchStatusEl = document.getElementById("main-search-status");
+  const mainSearchPrevEl = document.getElementById("main-search-prev");
+  const mainSearchNextEl = document.getElementById("main-search-next");
+  const mainSearchClearEl = document.getElementById("main-search-clear");
   if (
     !(mainCanvasEl instanceof HTMLCanvasElement) ||
     !(bottomCanvasEl instanceof HTMLCanvasElement) ||
@@ -165,10 +180,15 @@ async function main(): Promise<void> {
     !(userSelectEl instanceof HTMLSelectElement) ||
     !(mainScrollHostEl instanceof HTMLElement) ||
     !(mainScrollSpacerEl instanceof HTMLElement) ||
-    !(largeDatasetEl instanceof HTMLInputElement)
+    !(largeDatasetEl instanceof HTMLInputElement) ||
+    !(mainSearchInputEl instanceof HTMLInputElement) ||
+    mainSearchStatusEl === null ||
+    !(mainSearchPrevEl instanceof HTMLButtonElement) ||
+    !(mainSearchNextEl instanceof HTMLButtonElement) ||
+    !(mainSearchClearEl instanceof HTMLButtonElement)
   ) {
     throw new Error(
-      "expected main/bottom grid + scroll host + formula bar + tabs + workspace/user/form elements",
+      "expected main/bottom grid + scroll host + search chrome + formula bar + tabs + workspace/user/form elements",
     );
   }
   const status: HTMLElement = statusEl;
@@ -187,6 +207,11 @@ async function main(): Promise<void> {
   const mainScrollHost = mainScrollHostEl;
   const mainScrollSpacer = mainScrollSpacerEl;
   const largeDataset = largeDatasetEl;
+  const mainSearchInput = mainSearchInputEl;
+  const mainSearchStatus = mainSearchStatusEl;
+  const mainSearchPrev = mainSearchPrevEl;
+  const mainSearchNext = mainSearchNextEl;
+  const mainSearchClear = mainSearchClearEl;
   const mainCtx = mainCanvasEl.getContext("2d");
   const bottomCtx = bottomCanvasEl.getContext("2d");
   if (mainCtx === null || bottomCtx === null) {
@@ -194,6 +219,7 @@ async function main(): Promise<void> {
   }
 
   const paintScheduler = createPaintScheduler();
+  let mainSearch: SearchState = clearSearch();
 
   for (const entry of DEMO_WORKSPACES) {
     const option = document.createElement("option");
@@ -418,6 +444,15 @@ async function main(): Promise<void> {
     syncFormulaBar(mainUi);
     syncFormulaBar(bottomUi);
     refreshForm();
+    if (mainSearchInput.value.length > 0) {
+      mainSearch = beginSearch({
+        source: mainUi.grid,
+        rows: mainUi.bounds.rows,
+        cols: mainUi.bounds.cols,
+        query: mainSearchInput.value,
+      });
+      syncSearchChrome();
+    }
     scheduleRepaint();
   }
 
@@ -435,7 +470,60 @@ async function main(): Promise<void> {
       activeEntry.id === "loan-review" && largeDataset.checked
         ? " · virtualized"
         : "";
-    return `${workspaceLayout.name} · ${String(dims.rows)} ${workspaceLayout.main.dataSource}${sizeBit}${userBit} · main ${formatSelection(mainUi.selection)}${bottomBit}${historyHint()}${denied}`;
+    const searchBit =
+      mainSearch.query.length === 0
+        ? ""
+        : ` · find ${formatSearchStatus(mainSearch)}`;
+    return `${workspaceLayout.name} · ${String(dims.rows)} ${workspaceLayout.main.dataSource}${sizeBit}${userBit} · main ${formatSelection(mainUi.selection)}${bottomBit}${searchBit}${historyHint()}${denied}`;
+  }
+
+  function syncSearchChrome(): void {
+    mainSearchStatus.textContent = formatSearchStatus(mainSearch);
+    const hasMatches = mainSearch.matches.length > 0;
+    const hasQuery = mainSearch.query.length > 0;
+    mainSearchPrev.disabled = !hasMatches;
+    mainSearchNext.disabled = !hasMatches;
+    mainSearchClear.disabled = !hasQuery;
+  }
+
+  function probeMainLayout(): GridLayout {
+    return computeGridLayout({
+      rows: mainUi.paintBase.rows,
+      cols: mainUi.paintBase.cols,
+      columnWidths: mainUi.paintBase.columnWidths,
+    });
+  }
+
+  function revealMainSearchMatch(): void {
+    revealActiveSearchMatch({
+      host: mainScrollHost,
+      layout: probeMainLayout(),
+      state: mainSearch,
+      totalRows: mainUi.bounds.rows,
+    });
+  }
+
+  function runMainSearch(query: string, options?: { reveal?: boolean }): void {
+    mainSearch = beginSearch({
+      source: mainUi.grid,
+      rows: mainUi.bounds.rows,
+      cols: mainUi.bounds.cols,
+      query,
+    });
+    syncSearchChrome();
+    if (options?.reveal !== false) {
+      revealMainSearchMatch();
+    }
+    scheduleRepaint();
+  }
+
+  function clearMainSearch(options?: { repaint?: boolean }): void {
+    mainSearch = clearSearch();
+    mainSearchInput.value = "";
+    syncSearchChrome();
+    if (options?.repaint !== false) {
+      scheduleRepaint();
+    }
   }
 
   /** Scroll the main host so the current main selection row is fully visible. */
@@ -443,11 +531,7 @@ async function main(): Promise<void> {
     if (mainUi.selection === null) {
       return;
     }
-    const probe = computeGridLayout({
-      rows: mainUi.paintBase.rows,
-      cols: mainUi.paintBase.cols,
-      columnWidths: mainUi.paintBase.columnWidths,
-    });
+    const probe = probeMainLayout();
     const bodyH = viewportBodyHeight(
       mainScrollHost.clientHeight,
       probe.headerHeight,
@@ -492,6 +576,8 @@ async function main(): Promise<void> {
       source: mainUi.grid,
       selection: mainUi.selection,
       viewport,
+      searchMatches: mainSearch.matches,
+      activeSearchMatch: activeSearchMatch(mainSearch),
     });
   }
 
@@ -576,6 +662,15 @@ async function main(): Promise<void> {
     }
     syncFormulaBar(ui);
     refreshForm();
+    if (ui.region === "main" && mainSearch.query.length > 0) {
+      mainSearch = beginSearch({
+        source: mainUi.grid,
+        rows: mainUi.bounds.rows,
+        cols: mainUi.bounds.cols,
+        query: mainSearch.query,
+      });
+      syncSearchChrome();
+    }
     // Main edits must refresh bottom Aggregate (cross-region reads).
     scheduleRepaint();
   }
@@ -837,6 +932,7 @@ async function main(): Promise<void> {
       : loaded.grid;
     seedFromBound(loaded.layout, grid);
     mainScrollHost.scrollTop = 0;
+    clearMainSearch({ repaint: false });
     applyBottomTabUi();
     renderNotesTable();
     applyPermissionsFromUser(userSelect.value);
@@ -845,6 +941,52 @@ async function main(): Promise<void> {
 
   wireRegion(mainUi);
   wireRegion(bottomUi);
+  syncSearchChrome();
+
+  mainSearchInput.addEventListener("input", () => {
+    runMainSearch(mainSearchInput.value);
+  });
+  mainSearchInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      if (mainSearch.matches.length === 0) {
+        runMainSearch(mainSearchInput.value);
+        return;
+      }
+      mainSearch = event.shiftKey
+        ? prevSearchMatch(mainSearch)
+        : nextSearchMatch(mainSearch);
+      syncSearchChrome();
+      revealMainSearchMatch();
+      scheduleRepaint();
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      clearMainSearch();
+    }
+  });
+  mainSearchNext.addEventListener("click", () => {
+    if (mainSearch.matches.length === 0) {
+      return;
+    }
+    mainSearch = nextSearchMatch(mainSearch);
+    syncSearchChrome();
+    revealMainSearchMatch();
+    scheduleRepaint();
+  });
+  mainSearchPrev.addEventListener("click", () => {
+    if (mainSearch.matches.length === 0) {
+      return;
+    }
+    mainSearch = prevSearchMatch(mainSearch);
+    syncSearchChrome();
+    revealMainSearchMatch();
+    scheduleRepaint();
+  });
+  mainSearchClear.addEventListener("click", () => {
+    clearMainSearch();
+  });
 
   mainScrollHost.addEventListener(
     "scroll",

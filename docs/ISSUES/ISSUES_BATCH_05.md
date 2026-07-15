@@ -1,6 +1,7 @@
 # Fifth issue batch — close the demo-wiring gap, then the last untouched crates
 
-**Batch status (2026-07-15):** §25 in PR [#66](https://github.com/madmmas/gridyard/pull/66); §26–§30 still open.
+**Batch status (2026-07-15):** §25 merged ([#66](https://github.com/madmmas/gridyard/pull/66));
+§26 in flight; §27–§30 still open.
 
 | Batch § | GitHub | Title | PR |
 |---------|--------|-------|----|
@@ -90,7 +91,7 @@ confirmation left for the reviewer / PR test plan.
 
 ## 26. [web-demo] Wire search UI into the running demo
 
-**Status:** open — issue [#59](https://github.com/madmmas/gridyard/issues/59)
+**Status:** done — PR pending / issue [#59](https://github.com/madmmas/gridyard/issues/59)
 
 ### Spec reference
 `docs/02-rendering-layer-spec.md`; closes the follow-up from PR #55.
@@ -111,16 +112,20 @@ PRs stacked search on top of virtualization + rAF.
 - Cross-region search — still scoped to the active region/tab per the original issue #24's decision
 
 ### Acceptance criteria
-- [ ] Typing a search term in the running demo highlights matches and scrolls the first one into view
-- [ ] Next/previous controls work from the actual UI, not just in unit tests
-- [ ] Clearing search removes highlights and leaves scroll state sane
+- [x] Typing a search term in the running demo highlights matches and scrolls the first one into view
+- [x] Next/previous controls work from the actual UI, not just in unit tests
+- [x] Clearing search removes highlights and leaves scroll state sane
 
 ### Testing requirements
-- [ ] Whatever new glue-code tests make sense in `web-demo`
-- [ ] `npm test --workspaces --if-present`, typecheck, and build all pass
+- [x] Whatever new glue-code tests make sense in `web-demo`
+- [x] `npm test --workspaces --if-present`, typecheck, and build all pass
 
 ### Notes
-None yet.
+Main-region Find chrome (input + prev/next/clear + status). Uses
+`beginSearch` / `nextSearchMatch` / `prevSearchMatch` / `clearSearch` and
+scrolls via `revealActiveSearchMatch` on the §25 scroll host. Search is
+main-only (not bottom Aggregate/Notes). Manual demo check recommended
+with **5k rows** so scroll-into-view is obvious.
 
 ---
 

@@ -11,6 +11,11 @@ tried and abandoned — that's the whole point of this file existing.
 
 ## 2026-07-15
 
+- Issue [#25](https://github.com/madmmas/gridyard/issues/25) (type-to-edit
+  polish): with the canvas focused, a printable key **type-over-replaces**
+  the selected cell into the formula bar; `F2` and double-click open the bar
+  with the existing input and the caret at the end. Enter/Escape still use
+  the existing commit/cancel path. True in-cell caret overlay left for later.
 - Batch 04 (§19–§24) closed out in docs: all six issues merged on `main`
   via PRs #52–#57. Demo wiring for virtualization / rAF / search chrome was
   explicitly deferred and is now tracked in Batch 05 (§25–§26).

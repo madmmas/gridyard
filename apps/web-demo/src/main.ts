@@ -2,8 +2,10 @@ import {
   addNotesRow,
   asRegionEditableGrid,
   beginEdit,
+  beginEditFromCanvasStart,
   bottomControlTarget,
   cancelEdit,
+  canvasEditStartFromKey,
   clampSelection,
   colIndexToLetters,
   commitEditWithAccess,
@@ -21,6 +23,7 @@ import {
   updateDraft,
   updateNotesRow,
   type BottomTabState,
+  type CanvasEditStart,
   type CellAddress,
   type EditSession,
   type EditableGrid,
@@ -291,6 +294,36 @@ async function main(): Promise<void> {
     ui.session = beginEdit(ui.selection, formulaBarText(ui.grid, ui.selection));
   }
 
+  /**
+   * Focuses the formula bar from a canvas gesture (type-over / F2 / dblclick).
+   * Type-over replaces the draft with the typed character; F2 and double-click
+   * keep the existing cell input and place the caret at the end.
+   */
+  function focusFormulaBarForEdit(ui: RegionUi, start: CanvasEditStart): void {
+    if (ui.selection === null) {
+      return;
+    }
+    if (accessForSelection(ui) !== "edit") {
+      const fieldId = fieldIdForSelection(ui);
+      lastDeniedMessage =
+        fieldId === undefined
+          ? "Cannot edit — field is not editable."
+          : `Cannot edit "${fieldId}" — access is view, not edit.`;
+      status.textContent = statusLine();
+      return;
+    }
+    const original = formulaBarText(ui.grid, ui.selection);
+    ui.session = beginEditFromCanvasStart(ui.selection, original, start);
+    ui.formulaInput.readOnly = false;
+    ui.formulaInput.title = "";
+    ui.formulaInput.value = ui.session.draft;
+    ui.formulaInput.focus();
+    const caret = ui.formulaInput.value.length;
+    ui.formulaInput.setSelectionRange(caret, caret);
+    lastDeniedMessage = null;
+    status.textContent = statusLine();
+  }
+
   function refreshForm(): void {
     const rowIndex = mainUi.selection?.row ?? 0;
     const record: BoundRow = boundRows[rowIndex] ?? {};
@@ -522,11 +555,25 @@ async function main(): Promise<void> {
       ui.canvas.focus();
     });
 
+    ui.canvas.addEventListener("dblclick", (event) => {
+      if (ui.layout === null || ui.selection === null) {
+        return;
+      }
+      event.preventDefault();
+      focusFormulaBarForEdit(ui, { kind: "edit-existing" });
+    });
+
     ui.canvas.addEventListener("keydown", (event) => {
       const history = historyActionFromKey(event);
       if (history !== null) {
         event.preventDefault();
         applyHistory(history);
+        return;
+      }
+      const editStart = canvasEditStartFromKey(event);
+      if (editStart !== null) {
+        event.preventDefault();
+        focusFormulaBarForEdit(ui, editStart);
         return;
       }
       if (!isSelectionNavKey(event.key)) {

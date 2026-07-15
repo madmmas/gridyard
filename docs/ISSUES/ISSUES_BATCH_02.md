@@ -1,8 +1,8 @@
 # Second issue batch — from static render to a working interactive demo
 
 **Batch status (2026-07-13):** all six batch issues (§7–§12) closed on
-`main`. Type-to-edit UX remains open as deferred polish
-([#25](https://github.com/madmmas/gridyard/issues/25)).
+`main`. Type-to-edit UX (`#25`) was deferred polish and is now shipped
+separately (see deferred section below).
 
 | Batch § | GitHub | Title | PR |
 |---------|--------|-------|----|
@@ -256,16 +256,12 @@ interactive demo milestone did not wait on spreadsheet edit UX.
 
 ### [grid-renderer] Type-to-edit and formula-bar focus polish — `#25`
 
-**Status:** open — deferred (intentionally not required to close batch 02)
+**Status:** done — this PR / issue [#25](https://github.com/madmmas/gridyard/issues/25)
 
-**Why deferred:** Specs and §8 only require a formula bar + commit/cancel.
-Needing to mouse-focus the bar before typing is acceptable for the first
-interactive demo.
-
-**When to pick up:** When demo edit friction matters; start with
-type-over / `F2` / double-click focusing the formula bar. True in-cell
-caret overlay on the canvas is a later slice inside the same issue.
-Not recommended as the immediate follow-up to batch 02 — prefer the next
-batch (bottom region) unless edit comfort becomes painful while dogfooding.
+**Shipped slice:** With a cell selected and the canvas focused, a printable
+key type-over-replaces into the formula bar; `F2` and double-click open the
+bar with the existing cell input and the caret at the end. Enter still
+commits / Escape cancels via the existing formula-bar path. True in-cell
+caret overlay on the canvas remains a later follow-up if needed.
 
 **GitHub:** https://github.com/madmmas/gridyard/issues/25

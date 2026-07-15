@@ -21,10 +21,73 @@ export interface EditSession {
 }
 
 /**
+ * How a canvas-focused key / gesture should seed the formula bar.
+ *
+ * - `replace` — type-over: draft becomes the typed character (Excel-like)
+ * - `edit-existing` — F2 / double-click: draft keeps the current cell input
+ */
+export type CanvasEditStart =
+  | { kind: "replace"; draft: string }
+  | { kind: "edit-existing" };
+
+/**
  * Starts an edit session for `address` with the given raw `original` input.
  */
 export function beginEdit(address: CellAddress, original: string): EditSession {
   return { address, draft: original, original };
+}
+
+/**
+ * Starts an edit session from a canvas gesture. Type-over (`replace`) seeds
+ * the draft with the typed character while preserving `original` for Escape.
+ * `edit-existing` (F2 / double-click) keeps the current cell input as draft.
+ */
+export function beginEditFromCanvasStart(
+  address: CellAddress,
+  original: string,
+  start: CanvasEditStart,
+): EditSession {
+  if (start.kind === "replace") {
+    return { address, draft: start.draft, original };
+  }
+  return beginEdit(address, original);
+}
+
+/**
+ * Classifies a canvas keydown as a formula-bar edit start, or `null` when
+ * the key is navigation / a shortcut / otherwise not an edit trigger.
+ *
+ * Printable characters (no Ctrl/Meta/Alt) → type-over replace.
+ * `F2` → edit existing. Arrow/Enter/Tab/Escape and modified keys are ignored.
+ */
+export function canvasEditStartFromKey(event: {
+  key: string;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  altKey: boolean;
+}): CanvasEditStart | null {
+  if (event.ctrlKey || event.metaKey || event.altKey) {
+    return null;
+  }
+  if (event.key === "F2") {
+    return { kind: "edit-existing" };
+  }
+  if (!isTypeOverCharacter(event.key)) {
+    return null;
+  }
+  return { kind: "replace", draft: event.key };
+}
+
+/** True when `key` is a single printable character suitable for type-over. */
+export function isTypeOverCharacter(key: string): boolean {
+  // `KeyboardEvent.key` for printable input is one UTF-16 unit for the BMP
+  // characters we care about; named keys ("Enter", "F2", …) are longer.
+  if (key.length !== 1) {
+    return false;
+  }
+  const code = key.charCodeAt(0);
+  // Exclude C0 controls and DEL; allow Space and the rest of printable BMP.
+  return code >= 0x20 && code !== 0x7f;
 }
 
 /**

@@ -2,8 +2,7 @@
 
 **Batch status (2026-07-15):** all six batch issues (§19–§24) closed on
 `main` (see PR column). Demo wiring for virtualization / rAF / search
-chrome was deferred into Batch 05 (§25–§26). Type-to-edit (#25) remains
-open as deferred polish.
+chrome was deferred into Batch 05 (§25–§26).
 
 | Batch § | GitHub | Title | PR |
 |---------|--------|-------|----|

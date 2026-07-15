@@ -3,10 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 import {
   asEditableGrid,
   beginEdit,
+  beginEditFromCanvasStart,
   cancelEdit,
+  canvasEditStartFromKey,
   commitEdit,
   commitEditWithAccess,
   formulaBarText,
+  isTypeOverCharacter,
   updateDraft,
   type EditableGrid,
 } from "./edit.js";
@@ -55,6 +58,31 @@ describe("edit session", () => {
   it("beginEdit captures original and draft", () => {
     expect(beginEdit({ row: 0, col: 1 }, "=A1+1")).toEqual({
       address: { row: 0, col: 1 },
+      draft: "=A1+1",
+      original: "=A1+1",
+    });
+  });
+
+  it("beginEditFromCanvasStart type-over replaces draft but keeps original", () => {
+    expect(
+      beginEditFromCanvasStart({ row: 0, col: 0 }, "Ada", {
+        kind: "replace",
+        draft: "G",
+      }),
+    ).toEqual({
+      address: { row: 0, col: 0 },
+      draft: "G",
+      original: "Ada",
+    });
+  });
+
+  it("beginEditFromCanvasStart edit-existing keeps the cell input", () => {
+    expect(
+      beginEditFromCanvasStart({ row: 1, col: 2 }, "=A1+1", {
+        kind: "edit-existing",
+      }),
+    ).toEqual({
+      address: { row: 1, col: 2 },
       draft: "=A1+1",
       original: "=A1+1",
     });
@@ -116,6 +144,71 @@ describe("asEditableGrid", () => {
     expect(editable.get_input(1, 2)).toBe("=A1");
     editable.set_cell(0, 1, "9");
     expect(set_cell).toHaveBeenCalledWith(0, 1, "9");
+  });
+});
+
+describe("canvasEditStartFromKey", () => {
+  const plain = {
+    ctrlKey: false,
+    metaKey: false,
+    altKey: false,
+  };
+
+  it("maps F2 to edit-existing", () => {
+    expect(canvasEditStartFromKey({ ...plain, key: "F2" })).toEqual({
+      kind: "edit-existing",
+    });
+  });
+
+  it("maps printable characters to type-over replace", () => {
+    expect(canvasEditStartFromKey({ ...plain, key: "a" })).toEqual({
+      kind: "replace",
+      draft: "a",
+    });
+    expect(canvasEditStartFromKey({ ...plain, key: "7" })).toEqual({
+      kind: "replace",
+      draft: "7",
+    });
+    expect(canvasEditStartFromKey({ ...plain, key: "=" })).toEqual({
+      kind: "replace",
+      draft: "=",
+    });
+    expect(canvasEditStartFromKey({ ...plain, key: " " })).toEqual({
+      kind: "replace",
+      draft: " ",
+    });
+  });
+
+  it("ignores navigation, Escape, and modified keys", () => {
+    expect(canvasEditStartFromKey({ ...plain, key: "ArrowDown" })).toBeNull();
+    expect(canvasEditStartFromKey({ ...plain, key: "Enter" })).toBeNull();
+    expect(canvasEditStartFromKey({ ...plain, key: "Tab" })).toBeNull();
+    expect(canvasEditStartFromKey({ ...plain, key: "Escape" })).toBeNull();
+    expect(canvasEditStartFromKey({ ...plain, key: "Backspace" })).toBeNull();
+    expect(
+      canvasEditStartFromKey({
+        key: "a",
+        ctrlKey: true,
+        metaKey: false,
+        altKey: false,
+      }),
+    ).toBeNull();
+    expect(
+      canvasEditStartFromKey({
+        key: "F2",
+        ctrlKey: false,
+        metaKey: true,
+        altKey: false,
+      }),
+    ).toBeNull();
+  });
+
+  it("isTypeOverCharacter accepts printable Unicode and rejects controls", () => {
+    expect(isTypeOverCharacter("x")).toBe(true);
+    expect(isTypeOverCharacter("é")).toBe(true);
+    expect(isTypeOverCharacter("Enter")).toBe(false);
+    expect(isTypeOverCharacter("\n")).toBe(false);
+    expect(isTypeOverCharacter("")).toBe(false);
   });
 });
 

@@ -255,6 +255,52 @@
         left: 0;
         display: block;
       }
+      .search-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 10px;
+        font: 11px/1.4 ui-monospace, monospace;
+        color: var(--text-secondary);
+        background: var(--surface-0);
+        border-bottom: 0.5px solid var(--border);
+      }
+      .search-bar input[type="search"] {
+        flex: 1;
+        border: 0.5px solid var(--border);
+        border-radius: 6px;
+        background: var(--surface-1);
+        font: inherit;
+        color: var(--text-primary);
+        padding: 3px 8px;
+        min-width: 0;
+      }
+      .search-bar input[type="search"]:focus {
+        outline: 1px solid var(--fill-accent);
+      }
+      .search-status {
+        color: var(--text-muted);
+        min-width: 5.5em;
+        text-align: right;
+        white-space: nowrap;
+      }
+      .search-btn {
+        border: 0.5px solid var(--border);
+        border-radius: 6px;
+        background: var(--surface-1);
+        color: var(--text-secondary);
+        font: inherit;
+        padding: 3px 8px;
+        cursor: pointer;
+      }
+      .search-btn:hover {
+        background: var(--surface-0);
+        color: var(--text-primary);
+      }
+      .search-btn:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
 
     </style>
   </head>
@@ -289,6 +335,27 @@
             autocomplete="off"
             aria-label="Main formula bar"
           />
+        </div>
+        <div class="search-bar" role="search">
+          <label class="chrome-label" for="main-search-input">Find</label>
+          <input
+            id="main-search-input"
+            type="search"
+            spellcheck="false"
+            autocomplete="off"
+            placeholder="Substring in main…"
+            aria-label="Search main grid"
+          />
+          <span class="search-status" id="main-search-status" aria-live="polite"></span>
+          <button type="button" class="search-btn" id="main-search-prev" aria-label="Previous match">
+            Prev
+          </button>
+          <button type="button" class="search-btn" id="main-search-next" aria-label="Next match">
+            Next
+          </button>
+          <button type="button" class="search-btn" id="main-search-clear" aria-label="Clear search">
+            Clear
+          </button>
         </div>
         <div class="grid-scroll-host" id="main-scroll-host">
           <div class="grid-scroll-spacer" id="main-scroll-spacer">
@@ -364,9 +431,10 @@
       <p class="hint" id="status">
         Data loads from the mock server (<code>/loans</code> or <code>/employees</code> via Vite →
         :4000). Switch workspace without reload. Enable <strong>5k rows</strong> on Loan review for a
-        client-side synthetic grid (virtualized scroll + rAF-batched paints). Row 2500 overdue is
-        <code>=B1</code> for the off-screen formula check. Demo users resolve field/region
-        permissions; the form mirrors the selected main row. Notes is a plain label/value list.
+        client-side synthetic grid (virtualized scroll + rAF-batched paints). Use <strong>Find</strong>
+        on the main grid (substring match, next/prev, clear) — try with 5k rows so scroll-into-view
+        is obvious. Row 2500 overdue is <code>=B1</code>. Demo users resolve field/region permissions;
+        the form mirrors the selected main row. Notes is a plain label/value list.
       </p>
     </div>
     <script type="module" src="/src/main.ts"></script>

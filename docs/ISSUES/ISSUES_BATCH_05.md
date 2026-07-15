@@ -1,7 +1,6 @@
 # Fifth issue batch — close the demo-wiring gap, then the last untouched crates
 
-**Batch status (2026-07-15):** §25 merged ([#66](https://github.com/madmmas/gridyard/pull/66));
-§26 in PR [#67](https://github.com/madmmas/gridyard/pull/67); §27–§30 still open.
+**Batch status (2026-07-15):** §25–§26 merged; §27 in flight; §28–§30 still open.
 
 | Batch § | GitHub | Title | PR |
 |---------|--------|-------|----|
@@ -131,7 +130,7 @@ with **5k rows** so scroll-into-view is obvious.
 
 ## 27. [gridyard-grid] Clipboard — copy, cut, paste
 
-**Status:** open — issue [#60](https://github.com/madmmas/gridyard/issues/60)
+**Status:** done — PR pending / issue [#60](https://github.com/madmmas/gridyard/issues/60)
 
 ### Spec reference
 `docs/01-grid-engine-core-spec.md` — Selection/clipboard/undo section.
@@ -150,17 +149,22 @@ unimplemented. This issue picks up clipboard specifically.
 - Paste respects the existing undo/redo stack (a paste is one undoable command, not N single-cell edits)
 - Copying a formula and pasting elsewhere adjusts relative references correctly (standard spreadsheet fill-paste behavior) — copying a literal pastes the literal unchanged
 
+**Out of scope:**
+- WASM / UI keyboard wiring — engine logic only; follow-up can surface Cmd/Ctrl-C/V
+
 ### Acceptance criteria
-- [ ] Copy → paste elsewhere produces correct values, with relative formula references adjusted
-- [ ] Cut → paste removes the source and the operation undoes as a single step
-- [ ] Pasting over cells with existing content correctly overwrites and remains undoable
+- [x] Copy → paste elsewhere produces correct values, with relative formula references adjusted
+- [x] Cut → paste removes the source and the operation undoes as a single step
+- [x] Pasting over cells with existing content correctly overwrites and remains undoable
 
 ### Testing requirements
-- [ ] Table-driven tests: single-cell copy/paste, range copy/paste, cut, formula reference adjustment, undo of a paste
-- [ ] `cargo fmt --check && cargo clippy -- -D warnings && cargo test --workspace` passes
+- [x] Table-driven tests: single-cell copy/paste, range copy/paste, cut, formula reference adjustment, undo of a paste
+- [x] `cargo fmt --check && cargo clippy -- -D warnings && cargo test --workspace` passes
 
 ### Notes
-Wire into `gridyard-wasm`'s surface and `grid-renderer`'s keyboard handling once the underlying logic exists — this issue is scoped to the engine logic; a follow-up can wire the UI/keyboard shortcuts if that turns out to need its own issue.
+`gridyard-grid`: `copy` / `cut` / `paste` + `BatchEditCommand` on
+`UndoStack`. Formula adjustment via `gridyard_formula::shift_formula_refs`
+(A1 rewrite). No demo keyboard shortcuts yet.
 
 ---
 

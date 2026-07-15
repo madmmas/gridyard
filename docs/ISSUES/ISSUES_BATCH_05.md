@@ -1,12 +1,12 @@
 # Fifth issue batch — close the demo-wiring gap, then the last untouched crates
 
 **Batch status (2026-07-15):** §25 merged ([#66](https://github.com/madmmas/gridyard/pull/66));
-§26 in flight; §27–§30 still open.
+§26 in PR [#67](https://github.com/madmmas/gridyard/pull/67); §27–§30 still open.
 
 | Batch § | GitHub | Title | PR |
 |---------|--------|-------|----|
 | 25 | [#58](https://github.com/madmmas/gridyard/issues/58) | Real scroll host and a large dataset, wiring virtualization + rAF batching | [#66](https://github.com/madmmas/gridyard/pull/66) |
-| 26 | [#59](https://github.com/madmmas/gridyard/issues/59) | Wire search UI into the running demo | — |
+| 26 | [#59](https://github.com/madmmas/gridyard/issues/59) | Wire search UI into the running demo | [#67](https://github.com/madmmas/gridyard/pull/67) |
 | 27 | [#60](https://github.com/madmmas/gridyard/issues/60) | Clipboard — copy, cut, paste | — |
 | 28 | [#61](https://github.com/madmmas/gridyard/issues/61) | Sort and filter via index vectors | — |
 | 29 | [#62](https://github.com/madmmas/gridyard/issues/62) | CSV import/export | — |
@@ -91,7 +91,7 @@ confirmation left for the reviewer / PR test plan.
 
 ## 26. [web-demo] Wire search UI into the running demo
 
-**Status:** done — PR pending / issue [#59](https://github.com/madmmas/gridyard/issues/59)
+**Status:** done — PR [#67](https://github.com/madmmas/gridyard/pull/67) / issue [#59](https://github.com/madmmas/gridyard/issues/59)
 
 ### Spec reference
 `docs/02-rendering-layer-spec.md`; closes the follow-up from PR #55.

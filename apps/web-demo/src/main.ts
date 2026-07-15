@@ -13,15 +13,18 @@ import {
   computeGridLayout,
   createBottomTabState,
   createNotesRows,
+  createPaintScheduler,
   formulaBarText,
   hitTestDataCell,
   isSelectionNavKey,
   moveSelection,
   paintStaticGrid,
   remapEditableGrid,
+  scrollTopToRevealRow,
   selectBottomTab,
   updateDraft,
   updateNotesRow,
+  viewportBodyHeight,
   type BottomTabState,
   type CanvasEditStart,
   type CellAddress,
@@ -56,11 +59,19 @@ import { historyActionFromKey } from "./history-keys.js";
 import { loadWorkspaceMain } from "./load-workspace.js";
 import { renderFormView } from "./render-form.js";
 import {
+  paintViewportFromScrollHost,
+  sizeScrollSpacer,
+} from "./scroll-host.js";
+import {
   engineNumericColumns,
   paintConfigFromPermissionProjection,
   seedBottomAggregate,
   seedGridFromBoundMain,
 } from "./seed-from-bound-grid.js";
+import {
+  SYNTHETIC_LOAN_ROW_COUNT,
+  generateSyntheticLoans,
+} from "./synthetic-loans.js";
 import init, { create_workspace } from "./wasm-pkg/gridyard_wasm.js";
 
 interface DemoWorkspaceEntry {
@@ -129,6 +140,9 @@ async function main(): Promise<void> {
   const bottomAddRowEl = document.getElementById("bottom-add-row");
   const bottomPanelEl = document.getElementById("bottom-panel");
   const userSelectEl = document.getElementById("demo-user");
+  const mainScrollHostEl = document.getElementById("main-scroll-host");
+  const mainScrollSpacerEl = document.getElementById("main-scroll-spacer");
+  const largeDatasetEl = document.getElementById("large-dataset");
   if (
     !(mainCanvasEl instanceof HTMLCanvasElement) ||
     !(bottomCanvasEl instanceof HTMLCanvasElement) ||
@@ -148,10 +162,13 @@ async function main(): Promise<void> {
     notesBodyEl === null ||
     !(bottomAddRowEl instanceof HTMLButtonElement) ||
     bottomPanelEl === null ||
-    !(userSelectEl instanceof HTMLSelectElement)
+    !(userSelectEl instanceof HTMLSelectElement) ||
+    !(mainScrollHostEl instanceof HTMLElement) ||
+    !(mainScrollSpacerEl instanceof HTMLElement) ||
+    !(largeDatasetEl instanceof HTMLInputElement)
   ) {
     throw new Error(
-      "expected main/bottom grid + formula bar + tabs + workspace/user/form elements",
+      "expected main/bottom grid + scroll host + formula bar + tabs + workspace/user/form elements",
     );
   }
   const status: HTMLElement = statusEl;
@@ -167,11 +184,16 @@ async function main(): Promise<void> {
   const bottomAddRow = bottomAddRowEl;
   const bottomPanel = bottomPanelEl;
   const userSelect = userSelectEl;
+  const mainScrollHost = mainScrollHostEl;
+  const mainScrollSpacer = mainScrollSpacerEl;
+  const largeDataset = largeDatasetEl;
   const mainCtx = mainCanvasEl.getContext("2d");
   const bottomCtx = bottomCanvasEl.getContext("2d");
   if (mainCtx === null || bottomCtx === null) {
     throw new Error("2d context unavailable");
   }
+
+  const paintScheduler = createPaintScheduler();
 
   for (const entry of DEMO_WORKSPACES) {
     const option = document.createElement("option");
@@ -396,7 +418,7 @@ async function main(): Promise<void> {
     syncFormulaBar(mainUi);
     syncFormulaBar(bottomUi);
     refreshForm();
-    repaintAll();
+    scheduleRepaint();
   }
 
   function statusLine(): string {
@@ -409,15 +431,40 @@ async function main(): Promise<void> {
     const bottomBit = isRegionVisible(effective, "bottom")
       ? ` · bottom ${formatSelection(bottomUi.selection)}`
       : " · bottom denied";
-    return `${workspaceLayout.name} · ${String(dims.rows)} ${workspaceLayout.main.dataSource}${userBit} · main ${formatSelection(mainUi.selection)}${bottomBit}${historyHint()}${denied}`;
+    const sizeBit =
+      activeEntry.id === "loan-review" && largeDataset.checked
+        ? " · virtualized"
+        : "";
+    return `${workspaceLayout.name} · ${String(dims.rows)} ${workspaceLayout.main.dataSource}${sizeBit}${userBit} · main ${formatSelection(mainUi.selection)}${bottomBit}${historyHint()}${denied}`;
   }
 
-  function repaintAll(): void {
-    if (!isRegionVisible(effective, "main")) {
-      status.textContent = `${workspaceLayout.name} · main region denied`;
+  /** Scroll the main host so the current main selection row is fully visible. */
+  function ensureMainSelectionVisible(): void {
+    if (mainUi.selection === null) {
       return;
     }
+    const probe = computeGridLayout({
+      rows: mainUi.paintBase.rows,
+      cols: mainUi.paintBase.cols,
+      columnWidths: mainUi.paintBase.columnWidths,
+    });
+    const bodyH = viewportBodyHeight(
+      mainScrollHost.clientHeight,
+      probe.headerHeight,
+    );
+    const next = scrollTopToRevealRow(
+      mainUi.selection.row,
+      probe.rowHeight,
+      bodyH,
+      mainUi.bounds.rows,
+      mainScrollHost.scrollTop,
+    );
+    if (next !== mainScrollHost.scrollTop) {
+      mainScrollHost.scrollTop = next;
+    }
+  }
 
+  function paintMainRegion(): void {
     const mainLayout = computeGridLayout({
       rows: mainUi.paintBase.rows,
       cols: mainUi.paintBase.cols,
@@ -432,35 +479,54 @@ async function main(): Promise<void> {
       columnWidths: bottomSynced.columnWidths,
     };
 
+    const viewport = paintViewportFromScrollHost(mainScrollHost);
+    sizeScrollSpacer(
+      mainScrollSpacer,
+      mainLayout.totalWidth,
+      mainLayout.totalHeight,
+    );
+    mainUi.canvas.width = Math.max(mainLayout.totalWidth, 1);
+    mainUi.canvas.height = Math.max(viewport.height, 1);
     mainUi.layout = paintStaticGrid(mainUi.ctx, {
       ...mainUi.paintBase,
       source: mainUi.grid,
       selection: mainUi.selection,
+      viewport,
     });
-    mainUi.canvas.width = mainUi.layout.totalWidth;
-    mainUi.canvas.height = mainUi.layout.totalHeight;
-    mainUi.layout = paintStaticGrid(mainUi.ctx, {
-      ...mainUi.paintBase,
-      source: mainUi.grid,
-      selection: mainUi.selection,
-    });
+  }
 
+  function paintBottomRegion(): void {
+    if (!isRegionVisible(effective, "bottom") || bottomPanel.hidden) {
+      return;
+    }
+    const layout = paintStaticGrid(bottomUi.ctx, {
+      ...bottomUi.paintBase,
+      source: bottomUi.grid,
+      selection: bottomUi.selection,
+    });
+    bottomUi.canvas.width = layout.totalWidth;
+    bottomUi.canvas.height = layout.totalHeight;
+    bottomUi.layout = paintStaticGrid(bottomUi.ctx, {
+      ...bottomUi.paintBase,
+      source: bottomUi.grid,
+      selection: bottomUi.selection,
+    });
+  }
+
+  function scheduleRepaint(): void {
+    if (!isRegionVisible(effective, "main")) {
+      status.textContent = `${workspaceLayout.name} · main region denied`;
+      return;
+    }
+    paintScheduler.schedule("main", () => {
+      paintMainRegion();
+      status.textContent = statusLine();
+    });
     if (isRegionVisible(effective, "bottom") && !bottomPanel.hidden) {
-      bottomUi.layout = paintStaticGrid(bottomUi.ctx, {
-        ...bottomUi.paintBase,
-        source: bottomUi.grid,
-        selection: bottomUi.selection,
-      });
-      bottomUi.canvas.width = bottomUi.layout.totalWidth;
-      bottomUi.canvas.height = bottomUi.layout.totalHeight;
-      bottomUi.layout = paintStaticGrid(bottomUi.ctx, {
-        ...bottomUi.paintBase,
-        source: bottomUi.grid,
-        selection: bottomUi.selection,
+      paintScheduler.schedule("bottom", () => {
+        paintBottomRegion();
       });
     }
-
-    status.textContent = statusLine();
   }
 
   function historyHint(): string {
@@ -481,7 +547,7 @@ async function main(): Promise<void> {
     lastDeniedMessage = null;
     syncFormulaBar(mainUi);
     syncFormulaBar(bottomUi);
-    repaintAll();
+    scheduleRepaint();
   }
 
   function commitFromBar(ui: RegionUi, navKey: "Enter" | "Tab" | null): void {
@@ -498,17 +564,20 @@ async function main(): Promise<void> {
     if (!result.ok) {
       lastDeniedMessage = result.message;
       ui.formulaInput.value = formulaBarText(ui.grid, ui.selection);
-      repaintAll();
+      scheduleRepaint();
       return;
     }
     lastDeniedMessage = null;
     if (navKey !== null) {
       ui.selection = moveSelection(ui.selection, navKey, ui.bounds);
+      if (ui.region === "main") {
+        ensureMainSelectionVisible();
+      }
     }
     syncFormulaBar(ui);
     refreshForm();
     // Main edits must refresh bottom Aggregate (cross-region reads).
-    repaintAll();
+    scheduleRepaint();
   }
 
   function cancelFromBar(ui: RegionUi): void {
@@ -536,11 +605,14 @@ async function main(): Promise<void> {
         ui.session = null;
       }
       const rect = ui.canvas.getBoundingClientRect();
+      const scrollTop =
+        ui.region === "main" ? mainScrollHost.scrollTop : 0;
       const hit = hitTestDataCell(
         ui.layout,
         event.clientX - rect.left,
         event.clientY - rect.top,
         ui.bounds,
+        scrollTop,
       );
       if (hit === null) {
         return;
@@ -551,7 +623,7 @@ async function main(): Promise<void> {
       if (ui.region === "main") {
         refreshForm();
       }
-      repaintAll();
+      scheduleRepaint();
       ui.canvas.focus();
     });
 
@@ -584,12 +656,13 @@ async function main(): Promise<void> {
         commitFromBar(ui, null);
       }
       ui.selection = moveSelection(ui.selection, event.key, ui.bounds);
-      lastDeniedMessage = null;
-      syncFormulaBar(ui);
       if (ui.region === "main") {
+        ensureMainSelectionVisible();
         refreshForm();
       }
-      repaintAll();
+      lastDeniedMessage = null;
+      syncFormulaBar(ui);
+      scheduleRepaint();
     });
 
     ui.formulaInput.addEventListener("focus", () => {
@@ -685,7 +758,7 @@ async function main(): Promise<void> {
     bottomTabs = selectBottomTab(bottomTabs, tab);
     applyBottomTabUi();
     if (bottomTabs.active === "aggregate") {
-      repaintAll();
+      scheduleRepaint();
     } else {
       renderNotesTable();
     }
@@ -752,7 +825,18 @@ async function main(): Promise<void> {
     }
 
     populateUserSelect(entry.sampleUsers);
-    seedFromBound(loaded.layout, loaded.grid);
+    largeDataset.disabled = entry.id !== "loan-review";
+    if (entry.id !== "loan-review") {
+      largeDataset.checked = false;
+    }
+
+    const useSynthetic =
+      entry.id === "loan-review" && largeDataset.checked;
+    const grid = useSynthetic
+      ? generateSyntheticLoans(SYNTHETIC_LOAN_ROW_COUNT)
+      : loaded.grid;
+    seedFromBound(loaded.layout, grid);
+    mainScrollHost.scrollTop = 0;
     applyBottomTabUi();
     renderNotesTable();
     applyPermissionsFromUser(userSelect.value);
@@ -761,6 +845,24 @@ async function main(): Promise<void> {
 
   wireRegion(mainUi);
   wireRegion(bottomUi);
+
+  mainScrollHost.addEventListener(
+    "scroll",
+    () => {
+      paintScheduler.schedule("main", () => {
+        paintMainRegion();
+        status.textContent = statusLine();
+      });
+    },
+    { passive: true },
+  );
+
+  largeDataset.addEventListener("change", () => {
+    if (activeEntry.id !== "loan-review") {
+      return;
+    }
+    void activateWorkspace(activeEntry.id);
+  });
 
   userSelect.addEventListener("change", () => {
     applyPermissionsFromUser(userSelect.value);
@@ -802,7 +904,7 @@ async function main(): Promise<void> {
       bottomUi.selection = { row: nextRow, col: 0 };
     }
     syncFormulaBar(bottomUi);
-    repaintAll();
+    scheduleRepaint();
   });
 
   await activateWorkspace(workspaceSelect.value);

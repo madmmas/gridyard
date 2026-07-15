@@ -28,7 +28,7 @@
         background: var(--surface-0);
       }
       .wrap {
-        max-width: 640px;
+        max-width: 720px;
         margin: 0 auto;
       }
       .toolbar {
@@ -237,6 +237,24 @@
       .chrome-label select {
         font: inherit;
       }
+      .chrome-label input[type="checkbox"] {
+        margin: 0;
+      }
+      .grid-scroll-host {
+        height: 360px;
+        overflow: auto;
+        position: relative;
+        background: var(--surface-0);
+      }
+      .grid-scroll-spacer {
+        position: relative;
+      }
+      .grid-scroll-canvas {
+        position: sticky;
+        top: 0;
+        left: 0;
+        display: block;
+      }
 
     </style>
   </head>
@@ -255,6 +273,10 @@
           Demo user
           <select id="demo-user" aria-label="Demo hierarchy user"></select>
         </label>
+        <label class="chrome-label" title="Client-side 5,000-row Loan review dataset (virtualized scroll)">
+          <input type="checkbox" id="large-dataset" aria-label="Load 5k-row synthetic Loan review dataset" />
+          5k rows
+        </label>
       </div>
       <div class="panel">
         <div class="panel-header" id="main-panel-header">main · loans</div>
@@ -268,7 +290,18 @@
             aria-label="Main formula bar"
           />
         </div>
-        <canvas id="main-grid" width="458" height="280" tabindex="0" aria-label="Main loan grid"></canvas>
+        <div class="grid-scroll-host" id="main-scroll-host">
+          <div class="grid-scroll-spacer" id="main-scroll-spacer">
+            <canvas
+              id="main-grid"
+              class="grid-scroll-canvas"
+              width="458"
+              height="360"
+              tabindex="0"
+              aria-label="Main loan grid"
+            ></canvas>
+          </div>
+        </div>
       </div>
 
       <div class="panel form-panel" id="form-panel">
@@ -328,10 +361,12 @@
           </button>
         </div>
       </div>
-      <p class="hint" id="status">Data loads from the mock server (<code>/loans</code> or <code>/employees</code> via Vite → :4000). Switch workspace without reload. On Loan review, demo users resolve field/region permissions (Blair: overdue view-only; Casey: hide days late + no bottom). The form shows the selected main row with the same field permissions. Notes is a plain label/value list (no formula bar).</p>
-      <p class="hint">
-        Data loads from the mock server (<code>/loans</code> via Vite → :4000). Switch bottom
-        tabs without losing Aggregate edits. Notes is a plain label/value list (no formula bar).
+      <p class="hint" id="status">
+        Data loads from the mock server (<code>/loans</code> or <code>/employees</code> via Vite →
+        :4000). Switch workspace without reload. Enable <strong>5k rows</strong> on Loan review for a
+        client-side synthetic grid (virtualized scroll + rAF-batched paints). Row 2500 overdue is
+        <code>=B1</code> for the off-screen formula check. Demo users resolve field/region
+        permissions; the form mirrors the selected main row. Notes is a plain label/value list.
       </p>
     </div>
     <script type="module" src="/src/main.ts"></script>

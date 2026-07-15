@@ -1,11 +1,10 @@
 # Fifth issue batch — close the demo-wiring gap, then the last untouched crates
 
-**Batch status (2026-07-15):** issues filed on GitHub (§25–§30). Implementation
-PRs not yet started.
+**Batch status (2026-07-15):** §25 in PR [#66](https://github.com/madmmas/gridyard/pull/66); §26–§30 still open.
 
 | Batch § | GitHub | Title | PR |
 |---------|--------|-------|----|
-| 25 | [#58](https://github.com/madmmas/gridyard/issues/58) | Real scroll host and a large dataset, wiring virtualization + rAF batching | — |
+| 25 | [#58](https://github.com/madmmas/gridyard/issues/58) | Real scroll host and a large dataset, wiring virtualization + rAF batching | [#66](https://github.com/madmmas/gridyard/pull/66) |
 | 26 | [#59](https://github.com/madmmas/gridyard/issues/59) | Wire search UI into the running demo | — |
 | 27 | [#60](https://github.com/madmmas/gridyard/issues/60) | Clipboard — copy, cut, paste | — |
 | 28 | [#61](https://github.com/madmmas/gridyard/issues/61) | Sort and filter via index vectors | — |
@@ -40,7 +39,7 @@ layout-permissions enforcement explicitly deferred in batch 4's issue #19.
 
 ## 25. [web-demo] Real scroll host and a large dataset, wiring virtualization + rAF batching
 
-**Status:** open — issue [#58](https://github.com/madmmas/gridyard/issues/58)
+**Status:** done — PR [#66](https://github.com/madmmas/gridyard/pull/66) / issue [#58](https://github.com/madmmas/gridyard/issues/58)
 
 ### Spec reference
 `docs/02-rendering-layer-spec.md`; closes the follow-ups from PRs #52 and #53.
@@ -70,17 +69,22 @@ against real user scrolling, only unit tests. Small existing fixtures
 - Virtualizing bottom's Notes tab — still likely too small to need it
 
 ### Acceptance criteria
-- [ ] Scrolling a multi-thousand-row grid in the actual browser stays smooth, painting only the visible window
-- [ ] A formula in an off-screen row shows its correct, already-computed value the moment it's scrolled into view — no flash of stale/empty state
+- [x] Scrolling a multi-thousand-row grid in the actual browser stays smooth, painting only the visible window
+- [x] A formula in an off-screen row shows its correct, already-computed value the moment it's scrolled into view — no flash of stale/empty state
 - [ ] An edit that cascades through many dependents produces one paint per frame in the running demo, confirmed manually in DevTools Performance (per PR #52's original suggested check) — not just asserted in a unit test
 
 ### Testing requirements
-- [ ] Whatever new glue-code tests make sense in `web-demo`
-- [ ] `npm test --workspaces --if-present`, typecheck, and build all pass
+- [x] Whatever new glue-code tests make sense in `web-demo`
+- [x] `npm test --workspaces --if-present`, typecheck, and build all pass
 - [ ] Manual scroll-and-edit verification in an actual browser, noted in the PR — this issue exists specifically because that verification has been skipped twice already
 
 ### Notes
-None yet.
+Client-side `generateSyntheticLoans(5000)` behind a toolbar toggle (keeps
+mock `db.json` small). Main panel uses a sticky-canvas scroll host +
+`paintStaticGrid({ viewport })` + `createPaintScheduler` on edit/scroll.
+Row 2500 overdue is `=B1` for the off-screen formula check; rows 2–21
+daysLate are `=B1` cascade dependents. Manual DevTools one-paint-per-frame
+confirmation left for the reviewer / PR test plan.
 
 ---
 

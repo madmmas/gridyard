@@ -9,6 +9,27 @@ tried and abandoned — that's the whole point of this file existing.
 
 ---
 
+## 2026-07-15
+
+- Batch 04 (§19–§24) closed out in docs: all six issues merged on `main`
+  via PRs #52–#57. Demo wiring for virtualization / rAF / search chrome was
+  explicitly deferred and is now tracked in Batch 05 (§25–§26).
+- Fifth issue batch filed (`docs/ISSUES/ISSUES_BATCH_05.md` §25–§30):
+  - [#58](https://github.com/madmmas/gridyard/issues/58) — web-demo scroll
+    host + large dataset, wiring virtualization and rAF batching
+  - [#59](https://github.com/madmmas/gridyard/issues/59) — wire search UI
+    into the running demo
+  - [#60](https://github.com/madmmas/gridyard/issues/60) — `gridyard-grid`
+    clipboard (copy/cut/paste)
+  - [#61](https://github.com/madmmas/gridyard/issues/61) — `gridyard-grid`
+    sort/filter via index vectors
+  - [#62](https://github.com/madmmas/gridyard/issues/62) — `gridyard-io`
+    CSV import/export
+  - [#63](https://github.com/madmmas/gridyard/issues/63) — layout
+    permissions enforcement (deferred from §19)
+- Batch 05 lead priority: make the demo show what Batch 04 already unit-
+  tested, before more engine breadth in untouched crates.
+
 ## 2026-07-14
 
 - Batch 04 §24 (`@gridyard/grid-renderer`): in-region literal/substring search

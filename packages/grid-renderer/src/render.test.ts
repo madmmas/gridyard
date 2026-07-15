@@ -3,7 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 import { paintStaticGrid } from "./render.js";
 import type { CellJsValue, GridDataSource } from "./types.js";
 
-function mockCtx(): CanvasRenderingContext2D {
+function mockCtx(): CanvasRenderingContext2D & {
+  rect: ReturnType<typeof vi.fn>;
+  clip: ReturnType<typeof vi.fn>;
+  save: ReturnType<typeof vi.fn>;
+  restore: ReturnType<typeof vi.fn>;
+} {
   return {
     save: vi.fn(),
     restore: vi.fn(),
@@ -15,13 +20,20 @@ function mockCtx(): CanvasRenderingContext2D {
     moveTo: vi.fn(),
     lineTo: vi.fn(),
     stroke: vi.fn(),
+    rect: vi.fn(),
+    clip: vi.fn(),
     fillStyle: "",
     strokeStyle: "",
     lineWidth: 1,
     font: "",
     textAlign: "left",
     textBaseline: "alphabetic",
-  } as unknown as CanvasRenderingContext2D;
+  } as unknown as CanvasRenderingContext2D & {
+    rect: ReturnType<typeof vi.fn>;
+    clip: ReturnType<typeof vi.fn>;
+    save: ReturnType<typeof vi.fn>;
+    restore: ReturnType<typeof vi.fn>;
+  };
 }
 
 describe("paintStaticGrid virtual viewport", () => {
@@ -91,5 +103,38 @@ describe("paintStaticGrid virtual viewport", () => {
     });
     expect(reads.every(([r]) => r < 10)).toBe(true);
     expect(reads.some(([r]) => r === 150)).toBe(false);
+  });
+
+  it("clips body painting below the sticky header when scrolled", () => {
+    const ctx = mockCtx();
+    const source: GridDataSource = {
+      get_cell(): CellJsValue {
+        return { type: "text", value: "x" };
+      },
+    };
+    const headerHeight = 52;
+    paintStaticGrid(ctx, {
+      rows: 100,
+      cols: 1,
+      columnNames: ["Borrower"],
+      source,
+      selection: { row: 0, col: 0 },
+      viewport: {
+        scrollTop: 40,
+        height: headerHeight + 34 * 5,
+        overscan: 0,
+      },
+    });
+
+    expect(ctx.rect).toHaveBeenCalledWith(
+      0,
+      headerHeight,
+      expect.any(Number),
+      expect.any(Number),
+    );
+    expect(ctx.clip).toHaveBeenCalled();
+    // save: outer + body clip; restore: clip + outer
+    expect(ctx.save).toHaveBeenCalled();
+    expect(ctx.restore).toHaveBeenCalled();
   });
 });

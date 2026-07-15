@@ -104,9 +104,18 @@ export function paintStaticGrid(
   ctx.fillStyle = bodyFill;
   ctx.fillRect(0, 0, layout.totalWidth, paintH);
 
-  paintHeaderBackground(ctx, layout, paintH);
-  paintRefRow(ctx, layout, cols);
-  paintNameRow(ctx, layout, columnNames);
+  // Body layer is clipped below the sticky header so scrolled rows never paint
+  // through ref/name chrome (selection, gutter labels, cell text, etc.).
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(
+    0,
+    layout.headerHeight,
+    layout.totalWidth,
+    Math.max(0, paintH - layout.headerHeight),
+  );
+  ctx.clip();
+  paintGutterBackground(ctx, layout, paintH);
   paintGutter(ctx, layout, rowWindow, scrollTop);
   paintSearchHighlights(
     ctx,
@@ -128,7 +137,7 @@ export function paintStaticGrid(
     source,
     numericColumns ?? new Set(),
   );
-  paintGridLines(ctx, layout, rows, cols, rowWindow, scrollTop, paintH);
+  paintBodyGridLines(ctx, layout, rows, cols, rowWindow, scrollTop, paintH);
   paintSelectionBorder(ctx, layout, rows, cols, rowWindow, scrollTop, selection ?? null);
   paintActiveSearchBorder(
     ctx,
@@ -139,6 +148,13 @@ export function paintStaticGrid(
     scrollTop,
     options.activeSearchMatch ?? null,
   );
+  ctx.restore();
+
+  // Sticky header chrome last so it stays readable above any clipped body.
+  paintHeaderBackground(ctx, layout);
+  paintRefRow(ctx, layout, cols);
+  paintNameRow(ctx, layout, columnNames);
+  paintHeaderGridLines(ctx, layout, cols, paintH);
 
   // Outer border so each region reads as its own panel, not a shared pane.
   ctx.strokeStyle = GRID_THEME.border;
@@ -296,10 +312,17 @@ function paintActiveSearchBorder(
 function paintHeaderBackground(
   ctx: CanvasRenderingContext2D,
   layout: GridLayout,
-  paintH: number,
 ): void {
   ctx.fillStyle = GRID_THEME.surface1;
   ctx.fillRect(0, 0, layout.totalWidth, layout.headerHeight);
+}
+
+function paintGutterBackground(
+  ctx: CanvasRenderingContext2D,
+  layout: GridLayout,
+  paintH: number,
+): void {
+  ctx.fillStyle = GRID_THEME.surface1;
   ctx.fillRect(
     0,
     layout.headerHeight,
@@ -386,7 +409,7 @@ function paintBody(
   }
 }
 
-function paintGridLines(
+function paintBodyGridLines(
   ctx: CanvasRenderingContext2D,
   layout: GridLayout,
   rows: number,
@@ -399,13 +422,6 @@ function paintGridLines(
   ctx.lineWidth = 1;
   ctx.beginPath();
 
-  // Horizontal: below ref, below name, then each visible body row.
-  let y = layout.refRowHeight;
-  ctx.moveTo(0, y + 0.5);
-  ctx.lineTo(layout.totalWidth, y + 0.5);
-  y = layout.headerHeight;
-  ctx.moveTo(0, y + 0.5);
-  ctx.lineTo(layout.totalWidth, y + 0.5);
   for (let r = rowWindow.startRow; r <= rowWindow.endRow; r += 1) {
     if (r < 0 || r > rows) {
       continue;
@@ -418,7 +434,37 @@ function paintGridLines(
     ctx.lineTo(layout.totalWidth, yy + 0.5);
   }
 
-  // Vertical: after gutter, then each column (full paint height).
+  // Verticals only in the body clip region (header redraws its own segment).
+  ctx.moveTo(layout.gutterWidth + 0.5, layout.headerHeight);
+  ctx.lineTo(layout.gutterWidth + 0.5, paintH);
+  for (let c = 0; c < cols; c += 1) {
+    const width = layout.columnWidths[c] ?? 0;
+    const x = columnLeft(layout, c) + width;
+    ctx.moveTo(x + 0.5, layout.headerHeight);
+    ctx.lineTo(x + 0.5, paintH);
+  }
+
+  ctx.stroke();
+}
+
+/** Separator + vertical lines for the sticky ref/name header band. */
+function paintHeaderGridLines(
+  ctx: CanvasRenderingContext2D,
+  layout: GridLayout,
+  cols: number,
+  paintH: number,
+): void {
+  ctx.strokeStyle = GRID_THEME.border;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+
+  let y = layout.refRowHeight;
+  ctx.moveTo(0, y + 0.5);
+  ctx.lineTo(layout.totalWidth, y + 0.5);
+  y = layout.headerHeight;
+  ctx.moveTo(0, y + 0.5);
+  ctx.lineTo(layout.totalWidth, y + 0.5);
+
   ctx.moveTo(layout.gutterWidth + 0.5, 0);
   ctx.lineTo(layout.gutterWidth + 0.5, paintH);
   for (let c = 0; c < cols; c += 1) {

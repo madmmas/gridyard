@@ -1,10 +1,10 @@
 # Fifth issue batch — close the demo-wiring gap, then the last untouched crates
 
-**Batch status (2026-07-15):** §25 implementation in flight; §26–§30 still open.
+**Batch status (2026-07-15):** §25 in PR [#66](https://github.com/madmmas/gridyard/pull/66); §26–§30 still open.
 
 | Batch § | GitHub | Title | PR |
 |---------|--------|-------|----|
-| 25 | [#58](https://github.com/madmmas/gridyard/issues/58) | Real scroll host and a large dataset, wiring virtualization + rAF batching | — |
+| 25 | [#58](https://github.com/madmmas/gridyard/issues/58) | Real scroll host and a large dataset, wiring virtualization + rAF batching | [#66](https://github.com/madmmas/gridyard/pull/66) |
 | 26 | [#59](https://github.com/madmmas/gridyard/issues/59) | Wire search UI into the running demo | — |
 | 27 | [#60](https://github.com/madmmas/gridyard/issues/60) | Clipboard — copy, cut, paste | — |
 | 28 | [#61](https://github.com/madmmas/gridyard/issues/61) | Sort and filter via index vectors | — |
@@ -39,7 +39,7 @@ layout-permissions enforcement explicitly deferred in batch 4's issue #19.
 
 ## 25. [web-demo] Real scroll host and a large dataset, wiring virtualization + rAF batching
 
-**Status:** done — PR pending / issue [#58](https://github.com/madmmas/gridyard/issues/58)
+**Status:** done — PR [#66](https://github.com/madmmas/gridyard/pull/66) / issue [#58](https://github.com/madmmas/gridyard/issues/58)
 
 ### Spec reference
 `docs/02-rendering-layer-spec.md`; closes the follow-ups from PRs #52 and #53.

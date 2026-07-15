@@ -8,6 +8,7 @@ repository.workspace = true
 
 [dependencies]
 gridyard-core = { path = "../gridyard-core" }
+gridyard-formula = { path = "../gridyard-formula" }
 
 [lints]
 workspace = true

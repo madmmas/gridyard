@@ -42,6 +42,25 @@ pub fn parse_a1(text: &str, position: usize) -> Result<(u32, u32), ParseError> {
     Ok((row, col))
 }
 
+/// Formats 0-based `(row, col)` as an uppercase A1 reference (`A1`, `AA10`).
+pub fn format_a1(row: u32, col: u32) -> String {
+    format!("{}{}", format_column(col), row + 1)
+}
+
+fn format_column(mut col: u32) -> String {
+    // 0-based → Excel-style base-26 letters (A=0 … Z=25, AA=26, …).
+    let mut letters = Vec::new();
+    loop {
+        letters.push(char::from(b'A' + (col % 26) as u8));
+        if col < 26 {
+            break;
+        }
+        col = col / 26 - 1;
+    }
+    letters.reverse();
+    letters.into_iter().collect()
+}
+
 fn parse_column(letters: &str, position: usize) -> Result<u32, ParseError> {
     let mut col: u32 = 0;
     for ch in letters.chars() {
@@ -102,6 +121,21 @@ mod tests {
         let cases: &[&str] = &["", "1A", "A", "A0", "A-1", "A1B"];
         for &text in cases {
             assert!(parse_a1(text, 0).is_err(), "expected error for `{text}`");
+        }
+    }
+
+    #[test]
+    fn format_a1_round_trips_common_cases() {
+        let cases: &[(u32, u32, &str)] = &[
+            (0, 0, "A1"),
+            (1, 1, "B2"),
+            (0, 25, "Z1"),
+            (0, 26, "AA1"),
+            (9, 27, "AB10"),
+        ];
+        for &(row, col, expected) in cases {
+            assert_eq!(format_a1(row, col), expected);
+            assert_eq!(parse_a1(expected, 0).unwrap(), (row, col));
         }
     }
 }

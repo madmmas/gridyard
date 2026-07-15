@@ -21,6 +21,13 @@ pub struct CellEditCommand {
     pub new_input: String,
 }
 
+/// One or more cell edits applied as a single undoable unit (e.g. paste).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BatchEditCommand {
+    /// Constituent cell changes, in apply (redo) order.
+    pub edits: Vec<CellEditCommand>,
+}
+
 /// Undo/redo history for commands of type `C`.
 ///
 /// Pushing a new command clears the redo stack (linear history, not a
@@ -124,6 +131,16 @@ impl UndoStack<CellEditCommand> {
     /// Like [`Self::push`], but skips when `old_input == new_input`.
     pub fn push_edit(&mut self, command: CellEditCommand) {
         if command.old_input == command.new_input {
+            return;
+        }
+        self.push(command);
+    }
+}
+
+impl UndoStack<BatchEditCommand> {
+    /// Records a paste/batch when it contains at least one real edit.
+    pub fn push_batch(&mut self, command: BatchEditCommand) {
+        if command.edits.is_empty() {
             return;
         }
         self.push(command);

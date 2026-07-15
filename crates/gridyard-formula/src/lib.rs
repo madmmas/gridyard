@@ -12,7 +12,9 @@ mod functions;
 mod lexer;
 mod parser;
 mod refs;
+mod shift;
 
+pub use a1::{format_a1, parse_a1};
 pub use ast::{Ast, BinOp, Expr, NodeId, UnaryOp};
 pub use error::ParseError;
 pub use eval::{
@@ -22,3 +24,4 @@ pub use eval::{
 pub use functions::EvalEnv;
 pub use parser::parse_formula;
 pub use refs::{expand_range, ExternalRef};
+pub use shift::shift_formula_refs;

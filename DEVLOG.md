@@ -11,6 +11,15 @@ tried and abandoned — that's the whole point of this file existing.
 
 ## 2026-07-15
 
+- Seventh issue batch filed (`docs/ISSUES/ISSUES_BATCH_07.md` §32–§37):
+  styling engine [#75](https://github.com/madmmas/gridyard/issues/75),
+  write-back [#76](https://github.com/madmmas/gridyard/issues/76),
+  xlsx export [#77](https://github.com/madmmas/gridyard/issues/77),
+  workspace save/load [#78](https://github.com/madmmas/gridyard/issues/78),
+  custom cell types [#79](https://github.com/madmmas/gridyard/issues/79),
+  ui-kit status badge [#80](https://github.com/madmmas/gridyard/issues/80).
+  Docs-only filing — implementation deferred until after manual UI check
+  of the current demo.
 - **Forms removed from code** ([#72](https://github.com/madmmas/gridyard/issues/72)
   / Batch 06 §31): deleted `form.ts` / demo form panel; fixtures and parse
   no longer carry `form.sections`. Demo is main + bottom only. Manual

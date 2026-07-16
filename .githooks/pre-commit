@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Pre-commit: same floor as CI (see .github/workflows/ci.yml / `make check`).
+# Also blocks commits on the protected default branch (main).
 # Enable once per clone:  git config core.hooksPath .githooks
 # Bypass in an emergency: SKIP_HOOKS=1 git commit ...
 
@@ -11,6 +12,15 @@ if [ "${SKIP_HOOKS:-}" = "1" ]; then
 fi
 
 ROOT="$(git rev-parse --show-toplevel)"
+# shellcheck source=.githooks/block-main.sh
+source "$ROOT/.githooks/block-main.sh"
+
+protected_branch="${GRIDYARD_PROTECTED_BRANCH:-main}"
+current_branch="$(git symbolic-ref --quiet HEAD 2>/dev/null | sed 's|.*/||' || true)"
+if [ "$current_branch" = "$protected_branch" ]; then
+  block "Refusing to commit on protected branch \"${protected_branch}\"."
+fi
+
 cd "$ROOT"
 
 red() { printf '\033[31m%s\033[0m\n' "$*"; }

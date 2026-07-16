@@ -9,7 +9,7 @@
 | 27 | [#60](https://github.com/madmmas/gridyard/issues/60) | Clipboard — copy, cut, paste | [#68](https://github.com/madmmas/gridyard/pull/68) |
 | 28 | [#61](https://github.com/madmmas/gridyard/issues/61) | Sort and filter via index vectors | [#69](https://github.com/madmmas/gridyard/pull/69) |
 | 29 | [#62](https://github.com/madmmas/gridyard/issues/62) | CSV import/export | [#70](https://github.com/madmmas/gridyard/pull/70) |
-| 30 | [#63](https://github.com/madmmas/gridyard/issues/63) | Layout permissions enforcement | — |
+| 30 | [#63](https://github.com/madmmas/gridyard/issues/63) | Layout permissions enforcement | [#71](https://github.com/madmmas/gridyard/pull/71) |
 
 Checked the live repo first. All of batch 4 merged (PRs #52–#57), but
 found a real pattern worth calling out rather than papering over: three
@@ -245,7 +245,7 @@ RFC 4180–style parser/writer in `gridyard-io` (no external CSV crate).
 
 ## 30. [workspace-runtime] Layout permissions enforcement
 
-**Status:** done — PR pending / issue [#63](https://github.com/madmmas/gridyard/issues/63)
+**Status:** done — PR [#71](https://github.com/madmmas/gridyard/pull/71) / issue [#63](https://github.com/madmmas/gridyard/issues/63)
 
 ### Spec reference
 `docs/04-layout-and-permission-engine-spec.md` — Layout permissions.

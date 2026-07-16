@@ -1,7 +1,8 @@
 # Sixth issue batch — align the product with main + bottom grids only
 
-**Batch status (2026-07-15):** §31 open (forms de-scoped in specs; code
-removal pending).
+**Batch status (2026-07-15):** Specs de-scoped in PR
+[#73](https://github.com/madmmas/gridyard/pull/73); §31 code removal still
+open on [#72](https://github.com/madmmas/gridyard/issues/72).
 
 | Batch § | GitHub | Title | PR |
 |---------|--------|-------|----|

@@ -1,13 +1,13 @@
 # Fifth issue batch — close the demo-wiring gap, then the last untouched crates
 
-**Batch status (2026-07-15):** §25–§26 merged; §27 in flight; §28–§30 still open.
+**Batch status (2026-07-15):** §25–§27 merged; §28 in flight; §29–§30 still open.
 
 | Batch § | GitHub | Title | PR |
 |---------|--------|-------|----|
 | 25 | [#58](https://github.com/madmmas/gridyard/issues/58) | Real scroll host and a large dataset, wiring virtualization + rAF batching | [#66](https://github.com/madmmas/gridyard/pull/66) |
 | 26 | [#59](https://github.com/madmmas/gridyard/issues/59) | Wire search UI into the running demo | [#67](https://github.com/madmmas/gridyard/pull/67) |
 | 27 | [#60](https://github.com/madmmas/gridyard/issues/60) | Clipboard — copy, cut, paste | [#68](https://github.com/madmmas/gridyard/pull/68) |
-| 28 | [#61](https://github.com/madmmas/gridyard/issues/61) | Sort and filter via index vectors | — |
+| 28 | [#61](https://github.com/madmmas/gridyard/issues/61) | Sort and filter via index vectors | [#69](https://github.com/madmmas/gridyard/pull/69) |
 | 29 | [#62](https://github.com/madmmas/gridyard/issues/62) | CSV import/export | — |
 | 30 | [#63](https://github.com/madmmas/gridyard/issues/63) | Layout permissions enforcement | — |
 
@@ -170,7 +170,7 @@ unimplemented. This issue picks up clipboard specifically.
 
 ## 28. [gridyard-grid] Sort and filter via index vectors
 
-**Status:** open — issue [#61](https://github.com/madmmas/gridyard/issues/61)
+**Status:** done — PR [#69](https://github.com/madmmas/gridyard/pull/69) / issue [#61](https://github.com/madmmas/gridyard/issues/61)
 
 ### Spec reference
 `docs/01-grid-engine-core-spec.md` — Sorting/filtering/search section.
@@ -187,17 +187,22 @@ display order. Still entirely unimplemented.
 - Filter (show/hide rows by a predicate) via the same index-vector approach
 - Formulas referencing filtered/sorted cells continue to resolve correctly regardless of current display order
 
+**Out of scope:**
+- WASM / demo UI wiring — engine view layer only
+
 ### Acceptance criteria
-- [ ] Sorting doesn't change any `CellId`/underlying storage — only the index vector used for display order
-- [ ] A formula referencing a cell by its stable address still works correctly after that cell's row has been sorted/filtered to a different visual position
-- [ ] Filtering hides rows from paint without removing them from the underlying grid or breaking formulas that reference them
+- [x] Sorting doesn't change any `CellId`/underlying storage — only the index vector used for display order
+- [x] A formula referencing a cell by its stable address still works correctly after that cell's row has been sorted/filtered to a different visual position
+- [x] Filtering hides rows from paint without removing them from the underlying grid or breaking formulas that reference them
 
 ### Testing requirements
-- [ ] Table-driven tests: sort stability, multi-column sort, filter-then-formula-still-resolves, sort-then-undo-an-edit-still-works
-- [ ] `cargo fmt --check && cargo clippy -- -D warnings && cargo test --workspace` passes
+- [x] Table-driven tests: sort stability, multi-column sort, filter-then-formula-still-resolves, sort-then-undo-an-edit-still-works
+- [x] `cargo fmt --check && cargo clippy -- -D warnings && cargo test --workspace` passes
 
 ### Notes
-None yet.
+`RowView` holds `visible` index vectors. `sort_by` / `filter` / `reset`
+never touch `SparseGrid` cells. Sort compares via `CellValueSource`
+(computed values). No demo chrome yet.
 
 ---
 

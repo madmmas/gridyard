@@ -38,6 +38,11 @@ test / build / `npm audit --audit-level=high`. Requires
 (`cargo install cargo-deny --locked`). To skip once (emergency only):
 `SKIP_HOOKS=1 git commit ...`.
 
+`pre-commit` and `pre-push` also **block direct work on `main`**: do not
+commit or push on the default branch — create a feature branch and open a
+PR. GitHub enforces the same rule remotely (required PR + CI checks,
+admins included). Emergency bypass: `SKIP_HOOKS=1`.
+
 ## Before opening a PR
 
 Run `make check` (or rely on the pre-commit hook). See

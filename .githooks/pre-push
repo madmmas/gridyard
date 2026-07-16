@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Pre-push: block direct pushes to the protected default branch.
+# Enable once per clone:  git config core.hooksPath .githooks
+# Bypass in an emergency: SKIP_HOOKS=1 git push ...
+
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+# shellcheck source=.githooks/block-main.sh
+source "$ROOT/.githooks/block-main.sh"
+
+protected_branch="${GRIDYARD_PROTECTED_BRANCH:-main}"
+protected_ref="refs/heads/${protected_branch}"
+
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  if [ "$remote_ref" = "$protected_ref" ]; then
+    block "Refusing to push directly to protected branch \"${protected_branch}\"."
+  fi
+done
+
+exit 0

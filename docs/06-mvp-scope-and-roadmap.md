@@ -18,22 +18,25 @@ Keep the first version deliberately small, made of six modules:
   `03-workspace-schema-spec.md`)
 - **permissions** — view/edit rules (see
   `04-layout-and-permission-engine-spec.md`)
-- **layout** — main, footer, sidebar composition (see
+- **layout** — main + bottom grid composition (see
   `04-layout-and-permission-engine-spec.md`)
 - **adapters** — REST, JSON, mock data (see
   `04-layout-and-permission-engine-spec.md`)
 
-Explicitly excluded from the MVP: no formulas, no AI, no ERP domain
-logic. Those arrive in later phases below.
+Explicitly excluded from the MVP and from **current product focus**: no
+AI, no ERP domain logic, and **no structured form engine / form panels**
+(focus is main and bottom grids only). Formula support has since landed
+in the engine; treat older “no formulas” lines in this doc as historical
+Phase-0 framing where they still appear.
 
 ## MVP user flow
 
 **Admin:** creates a workspace (for example, "Customer Management"),
-drags in a table, a form, notes, comments, and calculations, configures
-fields, permissions, and layout, and saves it.
+composes a **main** data grid and a **bottom** region (Aggregate /
+Notes), configures fields, permissions, and layout, and saves it.
 
-**User:** opens the workspace and sees a customer grid, a notes panel,
-and a summary footer — with no coding involved on either side.
+**User:** opens the workspace and works in the main grid with the bottom
+Aggregate/Notes region — with no coding involved on either side.
 
 ## Development roadmap
 
@@ -61,11 +64,15 @@ without manually building UI screens.
 
 ### Phase 2 — Advanced User Experience (roughly 3 months)
 
-Features: forms, sidebar panels, footer calculations, custom views,
-saved layouts, personal preferences, validation rules, and conditional
-formatting.
+Features: sidebar panels (if revived), footer/bottom calculations,
+custom views, saved layouts, personal preferences, validation rules, and
+conditional formatting.
 
-Success criteria: users can customize their own workspace experience.
+**Out of scope for this phase (and current product):** structured form
+panels / form engine — keep investing in main + bottom grid UX instead.
+
+Success criteria: users can customize their own workspace experience
+within the grid-region model.
 
 ### Phase 3 — Enterprise Capabilities
 

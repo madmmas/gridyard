@@ -24,9 +24,11 @@ hand-written UI code is involved.
 The platform separates four concerns: the data model, the workspace
 definition, the runtime engine, and the business rules. This separation
 is what allows the same underlying data to be represented in multiple
-ways simultaneously: as a spreadsheet view, a form view, a dashboard
-view, an approval workflow, or an analytical view — all reading the same
-data model through different workspace definitions.
+ways over time. **Current product focus** is the spreadsheet-grade
+**main and bottom grid** workspace (Aggregate / Notes on bottom). Other
+lenses (dashboard, approval workflow, analytical views, structured
+**form** panels) are not in current scope — see
+`04-layout-and-permission-engine-spec.md` (Form engine out of scope).
 
 ## User-centered flexibility
 

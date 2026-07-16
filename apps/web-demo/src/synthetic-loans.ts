@@ -28,8 +28,8 @@ const STATUSES = ["Overdue", "Active", "Closed"] as const;
 
 /**
  * Builds a Loan Review–shaped `BoundMainGrid` with `rowCount` data rows.
- * Grid `cells` may contain formulas; `rows` (used by the form panel) stay
- * literal scalars so the form remains readable.
+ * Grid `cells` may contain formulas; `rows` stay literal scalars for
+ * binding/record consumers.
  */
 export function generateSyntheticLoans(rowCount: number): BoundMainGrid {
   if (!Number.isFinite(rowCount) || rowCount < 0) {

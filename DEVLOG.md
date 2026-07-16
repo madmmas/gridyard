@@ -11,6 +11,10 @@ tried and abandoned — that's the whole point of this file existing.
 
 ## 2026-07-15
 
+- **Forms removed from code** ([#72](https://github.com/madmmas/gridyard/issues/72)
+  / Batch 06 §31): deleted `form.ts` / demo form panel; fixtures and parse
+  no longer carry `form.sections`. Demo is main + bottom only. Manual
+  regression checklist for shipped features: `docs/MANUAL_TESTING.md`.
 - **Forms de-scoped.** Product focus is main + bottom grid regions only.
   Specs updated (`docs/04`, `03`, `06`, `00`): form engine marked out of
   scope. Cleanup of the Batch 04 form implementation tracked as

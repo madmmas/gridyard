@@ -1,8 +1,8 @@
 # Sixth issue batch — align the product with main + bottom grids only
 
 **Batch status (2026-07-15):** Specs de-scoped in PR
-[#73](https://github.com/madmmas/gridyard/pull/73); §31 code removal still
-open on [#72](https://github.com/madmmas/gridyard/issues/72).
+[#73](https://github.com/madmmas/gridyard/pull/73); §31 code removal in
+[#72](https://github.com/madmmas/gridyard/issues/72).
 
 | Batch § | GitHub | Title | PR |
 |---------|--------|-------|----|
@@ -18,7 +18,7 @@ that Batch 04 §20 shipped, so code matches the updated docs.
 
 ## 31. [workspace-runtime / web-demo] Remove form engine from product scope
 
-**Status:** open — issue [#72](https://github.com/madmmas/gridyard/issues/72)
+**Status:** in progress — issue [#72](https://github.com/madmmas/gridyard/issues/72)
 
 ### Spec reference
 `docs/04-layout-and-permission-engine-spec.md` — Form engine (out of
@@ -43,14 +43,15 @@ work and should be removed from the runtime and demo.
 - Rebuilding forms later (would need a new spec revision)
 
 ### Acceptance criteria
-- [ ] Demo layout is main + bottom only (no form panel)
-- [ ] No form engine on the public workspace-runtime API
-- [ ] Fixtures/schema no longer require `form` for demo workspaces
-- [ ] Tests and typecheck pass
+- [x] Demo layout is main + bottom only (no form panel)
+- [x] No form engine on the public workspace-runtime API
+- [x] Fixtures/schema no longer require `form` for demo workspaces
+- [x] Tests and typecheck pass
 
 ### Testing requirements
-- [ ] Vitest: form-specific tests removed or replaced; remaining suites green
-- [ ] Manual: web-demo shows only main/bottom; permission switching still works on grids
+- [x] Vitest: form-specific tests removed or replaced; remaining suites green
+- [x] Manual: web-demo shows only main/bottom; permission switching still works on grids
+- [x] Manual checklist for shipped features: `docs/MANUAL_TESTING.md`
 
 ### Notes
-Spec de-scope is a separate docs PR; this issue is implementation cleanup.
+Spec de-scope is a separate docs PR (#73); this issue is implementation cleanup.

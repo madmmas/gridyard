@@ -12,8 +12,8 @@ Gridyard’s workspace UI is **main + bottom grid regions** (with bottom’s
 Aggregate and Notes tabs). That is the surface to build, demo, and
 harden. A structured **form engine** (record-as-form panels alongside the
 grid) is **out of scope** for the current product — see “Form engine
-(out of scope)” below. Existing form code and schema fields may remain
-until removed by a tracked cleanup issue; they must not drive new work.
+(out of scope)” below. Do not reintroduce form schema or form chrome
+without a fresh spec revision.
 
 ## Layout engine
 
@@ -144,8 +144,8 @@ only**. If a form surface is revisited later, it should be a fresh
 spec revision, not silent revival of this section.
 
 Historical note: Batch 04 issue #49 / PR #56 shipped a first form-engine
-slice; removing that implementation from the runtime and demo is tracked
-separately (Batch 06).
+slice; Batch 06 / [#72](https://github.com/madmmas/gridyard/issues/72)
+removed that implementation from the runtime and demo.
 
 ## Permission engine
 

@@ -47,18 +47,4 @@ export const EMPLOYEE_MANAGEMENT_WORKSPACE: WorkspaceDefinition = {
       },
     },
   },
-  form: {
-    sections: [
-      {
-        id: "profile",
-        title: "Employee Information",
-        fieldIds: ["name", "department", "status"],
-      },
-      {
-        id: "payroll",
-        title: "Payroll",
-        fieldIds: ["salary", "tax"],
-      },
-    ],
-  },
 };

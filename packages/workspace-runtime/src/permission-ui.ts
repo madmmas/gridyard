@@ -136,3 +136,59 @@ export function isRegionVisible(
 ): boolean {
   return canAccessRegion(effective, regionId);
 }
+
+/** Decision for a layout-level action (resize / personalize / shared edit). */
+export type LayoutActionDecision =
+  | { ok: true }
+  | { ok: false; action: LayoutAction; message: string };
+
+/** Layout actions gated by {@link EffectivePermissions.layout}. */
+export type LayoutAction = "resize" | "personalize" | "modify-shared-layout";
+
+/**
+ * Authorize column / panel resize from resolved layout permissions.
+ */
+export function authorizeLayoutResize(
+  effective: EffectivePermissions,
+): LayoutActionDecision {
+  if (effective.layout.canResize) {
+    return { ok: true };
+  }
+  return {
+    ok: false,
+    action: "resize",
+    message: "Cannot resize layout — permission denied.",
+  };
+}
+
+/**
+ * Authorize personalizing the user’s own view (column prefs, etc.).
+ */
+export function authorizeLayoutPersonalize(
+  effective: EffectivePermissions,
+): LayoutActionDecision {
+  if (effective.layout.canPersonalize) {
+    return { ok: true };
+  }
+  return {
+    ok: false,
+    action: "personalize",
+    message: "Cannot personalize layout — permission denied.",
+  };
+}
+
+/**
+ * Authorize changing the shared layout (typically admin-only).
+ */
+export function authorizeModifySharedLayout(
+  effective: EffectivePermissions,
+): LayoutActionDecision {
+  if (effective.layout.canModifySharedLayout) {
+    return { ok: true };
+  }
+  return {
+    ok: false,
+    action: "modify-shared-layout",
+    message: "Cannot modify shared layout — admin permission required.",
+  };
+}

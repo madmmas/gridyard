@@ -17,6 +17,7 @@ import {
   createNotesRows,
   createPaintScheduler,
   formulaBarText,
+  hitTestColumnResizeEdge,
   hitTestDataCell,
   isSelectionNavKey,
   moveSelection,
@@ -62,6 +63,10 @@ import {
 } from "@gridyard/workspace-runtime";
 
 import { historyActionFromKey } from "./history-keys.js";
+import {
+  tryColumnResizeDrag,
+  tryResetSharedColumnWidths,
+} from "./layout-resize-chrome.js";
 import { loadWorkspaceMain } from "./load-workspace.js";
 import { renderFormView } from "./render-form.js";
 import {
@@ -153,6 +158,7 @@ async function main(): Promise<void> {
   const mainScrollHostEl = document.getElementById("main-scroll-host");
   const mainScrollSpacerEl = document.getElementById("main-scroll-spacer");
   const largeDatasetEl = document.getElementById("large-dataset");
+  const resetSharedLayoutEl = document.getElementById("reset-shared-layout");
   const mainSearchInputEl = document.getElementById("main-search-input");
   const mainSearchStatusEl = document.getElementById("main-search-status");
   const mainSearchPrevEl = document.getElementById("main-search-prev");
@@ -181,6 +187,7 @@ async function main(): Promise<void> {
     !(mainScrollHostEl instanceof HTMLElement) ||
     !(mainScrollSpacerEl instanceof HTMLElement) ||
     !(largeDatasetEl instanceof HTMLInputElement) ||
+    !(resetSharedLayoutEl instanceof HTMLButtonElement) ||
     !(mainSearchInputEl instanceof HTMLInputElement) ||
     mainSearchStatusEl === null ||
     !(mainSearchPrevEl instanceof HTMLButtonElement) ||
@@ -207,6 +214,7 @@ async function main(): Promise<void> {
   const mainScrollHost = mainScrollHostEl;
   const mainScrollSpacer = mainScrollSpacerEl;
   const largeDataset = largeDatasetEl;
+  const resetSharedLayout = resetSharedLayoutEl;
   const mainSearchInput = mainSearchInputEl;
   const mainSearchStatus = mainSearchStatusEl;
   const mainSearchPrev = mainSearchPrevEl;
@@ -248,6 +256,14 @@ async function main(): Promise<void> {
   let effective!: EffectivePermissions;
   let projection!: PermissionColumnProjection;
   let lastDeniedMessage: string | null = null;
+  /** Factory default widths for the current projection (shared-layout reset). */
+  let sharedDefaultWidths: number[] = [];
+  type ColumnResizeDrag = {
+    col: number;
+    startX: number;
+    startWidths: number[];
+  };
+  let columnResizeDrag: ColumnResizeDrag | null = null;
 
   const mainUi: RegionUi = {
     region: "main",
@@ -423,6 +439,7 @@ async function main(): Promise<void> {
 
     mainUi.paintBase = { ...paintMain, chrome: "main" };
     bottomUi.paintBase = { ...paintBottom, chrome: "bottom" };
+    sharedDefaultWidths = [...paintMain.columnWidths];
     mainUi.bounds = { rows: paintMain.rows, cols: paintMain.cols };
     bottomUi.bounds = { rows: paintBottom.rows, cols: paintBottom.cols };
 
@@ -700,12 +717,42 @@ async function main(): Promise<void> {
         ui.session = null;
       }
       const rect = ui.canvas.getBoundingClientRect();
+      const localX = event.clientX - rect.left;
+      const localY = event.clientY - rect.top;
+
+      if (ui.region === "main") {
+        const edge = hitTestColumnResizeEdge(ui.layout, localX, localY);
+        if (edge !== null) {
+          event.preventDefault();
+          const attempt = tryColumnResizeDrag(
+            effective,
+            mainUi.paintBase.columnWidths,
+            edge,
+            0,
+          );
+          if (!attempt.ok) {
+            lastDeniedMessage = attempt.message;
+            status.textContent = statusLine();
+            return;
+          }
+          columnResizeDrag = {
+            col: edge,
+            startX: event.clientX,
+            startWidths: [...mainUi.paintBase.columnWidths],
+          };
+          lastDeniedMessage = null;
+          ui.canvas.setPointerCapture(event.pointerId);
+          ui.canvas.style.cursor = "col-resize";
+          return;
+        }
+      }
+
       const scrollTop =
         ui.region === "main" ? mainScrollHost.scrollTop : 0;
       const hit = hitTestDataCell(
         ui.layout,
-        event.clientX - rect.left,
-        event.clientY - rect.top,
+        localX,
+        localY,
         ui.bounds,
         scrollTop,
       );
@@ -721,6 +768,59 @@ async function main(): Promise<void> {
       scheduleRepaint();
       ui.canvas.focus();
     });
+
+    if (ui.region === "main") {
+      ui.canvas.addEventListener("pointermove", (event) => {
+        if (ui.layout === null) {
+          return;
+        }
+        if (columnResizeDrag !== null) {
+          const delta = event.clientX - columnResizeDrag.startX;
+          const attempt = tryColumnResizeDrag(
+            effective,
+            columnResizeDrag.startWidths,
+            columnResizeDrag.col,
+            delta,
+          );
+          if (!attempt.ok) {
+            lastDeniedMessage = attempt.message;
+            status.textContent = statusLine();
+            return;
+          }
+          mainUi.paintBase = {
+            ...mainUi.paintBase,
+            columnWidths: attempt.widths,
+          };
+          scheduleRepaint();
+          return;
+        }
+        const rect = ui.canvas.getBoundingClientRect();
+        const edge = hitTestColumnResizeEdge(
+          ui.layout,
+          event.clientX - rect.left,
+          event.clientY - rect.top,
+        );
+        ui.canvas.style.cursor =
+          edge !== null && effective.layout.canResize ? "col-resize" : "cell";
+      });
+
+      ui.canvas.addEventListener("pointerup", (event) => {
+        if (columnResizeDrag === null) {
+          return;
+        }
+        columnResizeDrag = null;
+        if (ui.canvas.hasPointerCapture(event.pointerId)) {
+          ui.canvas.releasePointerCapture(event.pointerId);
+        }
+        ui.canvas.style.cursor = "cell";
+        status.textContent = statusLine();
+      });
+
+      ui.canvas.addEventListener("pointercancel", () => {
+        columnResizeDrag = null;
+        ui.canvas.style.cursor = "cell";
+      });
+    }
 
     ui.canvas.addEventListener("dblclick", (event) => {
       if (ui.layout === null || ui.selection === null) {
@@ -1008,6 +1108,21 @@ async function main(): Promise<void> {
 
   userSelect.addEventListener("change", () => {
     applyPermissionsFromUser(userSelect.value);
+  });
+
+  resetSharedLayout.addEventListener("click", () => {
+    const attempt = tryResetSharedColumnWidths(effective, sharedDefaultWidths);
+    if (!attempt.ok) {
+      lastDeniedMessage = attempt.message;
+      status.textContent = statusLine();
+      return;
+    }
+    lastDeniedMessage = null;
+    mainUi.paintBase = {
+      ...mainUi.paintBase,
+      columnWidths: attempt.widths,
+    };
+    scheduleRepaint();
   });
 
   workspaceSelect.addEventListener("change", () => {

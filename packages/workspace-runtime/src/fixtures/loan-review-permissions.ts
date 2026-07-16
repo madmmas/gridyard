@@ -8,9 +8,9 @@ import type {
  *
  * Core grants full edit on every field and access to main + bottom.
  * Named users differ meaningfully for UI enforcement demos:
- * - alex: full edit (matches core)
- * - blair: `overdue` is view-only
- * - casey: `daysLate` is hidden; bottom region denied
+ * - alex: full edit; may modify the shared layout (admin-like)
+ * - blair: `overdue` is view-only; cannot resize columns
+ * - casey: `daysLate` is hidden; bottom region denied; cannot personalize
  */
 export const LOAN_REVIEW_PERMISSIONS: LayeredPermissionDefinition = {
   core: {
@@ -43,10 +43,16 @@ export const LOAN_REVIEW_PERMISSIONS: LayeredPermissionDefinition = {
         daysLate: "edit",
       },
       regions: { main: true, bottom: true },
+      layout: {
+        canModifySharedLayout: true,
+      },
     },
     blair: {
       fields: {
         overdue: "view",
+      },
+      layout: {
+        canResize: false,
       },
     },
     casey: {
@@ -55,6 +61,9 @@ export const LOAN_REVIEW_PERMISSIONS: LayeredPermissionDefinition = {
       },
       regions: {
         bottom: false,
+      },
+      layout: {
+        canPersonalize: false,
       },
     },
   },
@@ -75,20 +84,23 @@ export interface SamplePermissionUser {
 export const LOAN_REVIEW_SAMPLE_USERS: readonly SamplePermissionUser[] = [
   {
     id: "alex",
-    label: "Alex (full edit)",
+    label: "Alex (full edit + shared layout)",
     position: { userId: "alex" },
-    summary: "Can view and edit every field; main and bottom accessible.",
+    summary:
+      "Can edit every field, resize columns, and reset the shared layout.",
   },
   {
     id: "blair",
-    label: "Blair (overdue view-only)",
+    label: "Blair (overdue view-only, no resize)",
     position: { userId: "blair" },
-    summary: "Overdue is visible but not editable; other fields still editable.",
+    summary:
+      "Overdue is view-only; column resize is blocked by layout permissions.",
   },
   {
     id: "casey",
-    label: "Casey (hide daysLate)",
+    label: "Casey (hide daysLate, no personalize)",
     position: { userId: "casey" },
-    summary: "Days late column is hidden; bottom region is inaccessible.",
+    summary:
+      "Days late hidden; bottom denied; cannot personalize layout.",
   },
 ];

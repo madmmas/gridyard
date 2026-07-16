@@ -323,6 +323,14 @@
           <input type="checkbox" id="large-dataset" aria-label="Load 5k-row synthetic Loan review dataset" />
           5k rows
         </label>
+        <button
+          type="button"
+          id="reset-shared-layout"
+          class="chrome-label"
+          title="Reset column widths to shared defaults (requires modify-shared-layout permission)"
+        >
+          Reset shared widths
+        </button>
       </div>
       <div class="panel">
         <div class="panel-header" id="main-panel-header">main · loans</div>
@@ -433,8 +441,9 @@
         :4000). Switch workspace without reload. Enable <strong>5k rows</strong> on Loan review for a
         client-side synthetic grid (virtualized scroll + rAF-batched paints). Use <strong>Find</strong>
         on the main grid (substring match, next/prev, clear) — try with 5k rows so scroll-into-view
-        is obvious. Row 2500 overdue is <code>=B1</code>. Demo users resolve field/region permissions;
-        the form mirrors the selected main row. Notes is a plain label/value list.
+        is obvious. Row 2500 overdue is <code>=B1</code>. Demo users resolve field/region/layout
+        permissions (drag column edges to resize; <strong>Reset shared widths</strong> is
+        admin-only). The form mirrors the selected main row. Notes is a plain label/value list.
       </p>
     </div>
     <script type="module" src="/src/main.ts"></script>

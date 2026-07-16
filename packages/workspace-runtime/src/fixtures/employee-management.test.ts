@@ -28,23 +28,5 @@ describe("EMPLOYEE_MANAGEMENT_WORKSPACE", () => {
       "comments",
       "docLink",
     ]);
-    expect(result.layout.form?.sections.map((s) => s.title)).toEqual([
-      "Employee Information",
-      "Payroll",
-    ]);
-  });
-
-  it("rejects a loan-shaped field id on the employee form", () => {
-    const input = structuredClone(EMPLOYEE_MANAGEMENT_WORKSPACE);
-    if (input.form?.sections[0] === undefined) {
-      throw new Error("expected form section");
-    }
-    input.form.sections[0].fieldIds = ["borrower"];
-    const result = parseWorkspaceDefinition(input);
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      return;
-    }
-    expect(result.errors.some((e) => e.code === "unknown_form_field")).toBe(true);
   });
 });

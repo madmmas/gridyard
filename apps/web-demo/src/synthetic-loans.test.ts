@@ -31,7 +31,7 @@ describe("generateSyntheticLoans", () => {
     for (let i = 1; i <= SYNTHETIC_CASCADE_DEPENDENT_ROWS; i += 1) {
       expect(grid.cells[i]?.[3]).toBe("=B1");
     }
-    // Bound rows stay literal for the form panel.
+    // Bound rows stay literal for record consumers.
     expect(typeof grid.rows[SYNTHETIC_OFFSCREEN_FORMULA_ROW]?.overdue).toBe(
       "number",
     );

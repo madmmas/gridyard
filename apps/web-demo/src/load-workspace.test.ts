@@ -33,7 +33,6 @@ describe("loadWorkspaceMain", () => {
     }
     expect(result.layout.main.dataSource).toBe("loans");
     expect(result.grid.rows[0]?.["borrower"]).toBe("Alam Textiles");
-    expect(result.layout.form?.sections).toHaveLength(2);
   });
 
   it("binds employees through the same loader path", async () => {

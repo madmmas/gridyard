@@ -48,12 +48,10 @@ import {
   LOAN_REVIEW_PERMISSIONS,
   LOAN_REVIEW_SAMPLE_USERS,
   LOAN_REVIEW_WORKSPACE,
-  buildFormView,
   isRegionVisible,
   projectColumnsForPermissions,
   resolvePermissions,
   type BoundMainGrid,
-  type BoundRow,
   type EffectivePermissions,
   type LayeredPermissionDefinition,
   type PermissionColumnProjection,
@@ -68,7 +66,6 @@ import {
   tryResetSharedColumnWidths,
 } from "./layout-resize-chrome.js";
 import { loadWorkspaceMain } from "./load-workspace.js";
-import { renderFormView } from "./render-form.js";
 import {
   paintViewportFromScrollHost,
   sizeScrollSpacer,
@@ -145,8 +142,6 @@ async function main(): Promise<void> {
   const bottomFormulaAddrEl = document.getElementById("bottom-formula-addr");
   const workspaceSelectEl = document.getElementById("workspace-select");
   const mainPanelHeaderEl = document.getElementById("main-panel-header");
-  const formBodyEl = document.getElementById("form-body");
-  const formPanelHeaderEl = document.getElementById("form-panel-header");
   const tabAggregateEl = document.getElementById("tab-aggregate");
   const tabNotesEl = document.getElementById("tab-notes");
   const panelAggregateEl = document.getElementById("panel-aggregate");
@@ -174,8 +169,6 @@ async function main(): Promise<void> {
     bottomFormulaAddrEl === null ||
     !(workspaceSelectEl instanceof HTMLSelectElement) ||
     mainPanelHeaderEl === null ||
-    formBodyEl === null ||
-    formPanelHeaderEl === null ||
     !(tabAggregateEl instanceof HTMLButtonElement) ||
     !(tabNotesEl instanceof HTMLButtonElement) ||
     panelAggregateEl === null ||
@@ -195,14 +188,12 @@ async function main(): Promise<void> {
     !(mainSearchClearEl instanceof HTMLButtonElement)
   ) {
     throw new Error(
-      "expected main/bottom grid + scroll host + search chrome + formula bar + tabs + workspace/user/form elements",
+      "expected main/bottom grid + scroll host + search chrome + formula bar + tabs + workspace/user elements",
     );
   }
   const status: HTMLElement = statusEl;
   const workspaceSelect = workspaceSelectEl;
   const mainPanelHeader = mainPanelHeaderEl;
-  const formBody = formBodyEl;
-  const formPanelHeader = formPanelHeaderEl;
   const tabAggregate = tabAggregateEl;
   const tabNotes = tabNotesEl;
   const panelAggregate = panelAggregateEl;
@@ -251,7 +242,6 @@ async function main(): Promise<void> {
   let bottomEngine = asRegionEditableGrid(rawWorkspace, "bottom");
 
   let workspaceLayout!: WorkspaceLayout;
-  let boundRows: BoundRow[] = [];
   let dims = { rows: 0, cols: 0 };
   let effective!: EffectivePermissions;
   let projection!: PermissionColumnProjection;
@@ -388,18 +378,6 @@ async function main(): Promise<void> {
     status.textContent = statusLine();
   }
 
-  function refreshForm(): void {
-    const rowIndex = mainUi.selection?.row ?? 0;
-    const record: BoundRow = boundRows[rowIndex] ?? {};
-    const form = buildFormView(workspaceLayout, record, effective);
-    const label =
-      boundRows[rowIndex] === undefined
-        ? "form · no row"
-        : `form · row ${String(rowIndex + 1)}`;
-    formPanelHeader.textContent = label;
-    renderFormView(formBody, form);
-  }
-
   function populateUserSelect(users: readonly SamplePermissionUser[]): void {
     userSelect.replaceChildren();
     for (const sample of users) {
@@ -460,7 +438,6 @@ async function main(): Promise<void> {
 
     syncFormulaBar(mainUi);
     syncFormulaBar(bottomUi);
-    refreshForm();
     if (mainSearchInput.value.length > 0) {
       mainSearch = beginSearch({
         source: mainUi.grid,
@@ -678,7 +655,6 @@ async function main(): Promise<void> {
       }
     }
     syncFormulaBar(ui);
-    refreshForm();
     if (ui.region === "main" && mainSearch.query.length > 0) {
       mainSearch = beginSearch({
         source: mainUi.grid,
@@ -762,9 +738,6 @@ async function main(): Promise<void> {
       ui.selection = hit;
       lastDeniedMessage = null;
       syncFormulaBar(ui);
-      if (ui.region === "main") {
-        refreshForm();
-      }
       scheduleRepaint();
       ui.canvas.focus();
     });
@@ -853,7 +826,6 @@ async function main(): Promise<void> {
       ui.selection = moveSelection(ui.selection, event.key, ui.bounds);
       if (ui.region === "main") {
         ensureMainSelectionVisible();
-        refreshForm();
       }
       lastDeniedMessage = null;
       syncFormulaBar(ui);
@@ -971,7 +943,6 @@ async function main(): Promise<void> {
     bottomUi.engineGrid = bottomEngine;
 
     workspaceLayout = layout;
-    boundRows = [...grid.rows];
     dims = seedGridFromBoundMain(mainEngine, grid);
     const engineNumeric = engineNumericColumns(workspaceLayout);
     const bottomDims = seedBottomAggregate(

@@ -60,26 +60,6 @@ export interface BottomRegionDefinition {
   activeTab?: "aggregate" | "notes";
 }
 
-/**
- * One labeled section in a record form (docs/04 form engine).
- * Field ids must reference `regions.main.fields`.
- */
-export interface FormSectionDefinition {
-  id: string;
-  /** Section heading (e.g. "Customer Information"). */
-  title: string;
-  /** Main field ids shown in this section, in display order. */
-  fieldIds: string[];
-}
-
-/**
- * Structured form over the same main fields the grid binds.
- * Optional: workspaces without a form still load as grids.
- */
-export interface FormDefinition {
-  sections: FormSectionDefinition[];
-}
-
 /** Authoring-time workspace JSON shape. */
 export interface WorkspaceDefinition {
   id: string;
@@ -88,8 +68,6 @@ export interface WorkspaceDefinition {
     main: MainRegionDefinition;
     bottom: BottomRegionDefinition;
   };
-  /** Optional form layout; uses the same field defs as main. */
-  form?: FormDefinition;
 }
 
 /** Resolved main-region column for consumers (renderer / binders). */
@@ -104,14 +82,6 @@ export interface LayoutColumn {
 /** Aggregate column: same identity as main, tagged as width/name-synced. */
 export interface SyncedLayoutColumn extends LayoutColumn {
   readonly syncedFromMain: true;
-}
-
-/** Normalized form section ready for the form engine. */
-export interface FormSectionLayout {
-  id: string;
-  title: string;
-  /** Resolved main columns in section order. */
-  fields: LayoutColumn[];
 }
 
 /** Normalized layout descriptor ready for the renderer / adapters. */
@@ -130,10 +100,6 @@ export interface WorkspaceLayout {
       fields: FieldDefinition[];
     };
     activeTab: "aggregate" | "notes";
-  };
-  /** Present when the workspace definition included a form. */
-  form?: {
-    sections: FormSectionLayout[];
   };
 }
 

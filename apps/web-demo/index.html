@@ -171,62 +171,6 @@
         font-size: 12px;
       }
     
-      .form-panel .form-body {
-        padding: 12px 14px 16px;
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-      }
-      .form-section {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        padding-bottom: 12px;
-        border-bottom: 0.5px solid var(--border);
-      }
-      .form-section:last-child {
-        border-bottom: none;
-        padding-bottom: 0;
-      }
-      .form-section-title {
-        margin: 0;
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--text-primary);
-      }
-      .form-fields {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-      .form-field {
-        display: grid;
-        grid-template-columns: 120px 1fr;
-        gap: 8px;
-        align-items: center;
-      }
-      .form-label {
-        font-size: 12px;
-        color: var(--text-secondary);
-      }
-      .form-input {
-        font: inherit;
-        font-size: 13px;
-        color: var(--text-primary);
-        border: 0.5px solid var(--border);
-        border-radius: 6px;
-        background: var(--surface-1);
-        padding: 4px 8px;
-      }
-      .form-field[data-access="view"] .form-input {
-        color: var(--text-secondary);
-      }
-      .form-empty {
-        margin: 0;
-        font-size: 12px;
-        color: var(--text-muted);
-      }
-    
       .chrome-label {
         display: inline-flex;
         align-items: center;
@@ -379,11 +323,6 @@
         </div>
       </div>
 
-      <div class="panel form-panel" id="form-panel">
-        <div class="panel-header" id="form-panel-header">form · selected row</div>
-        <div class="form-body" id="form-body"></div>
-      </div>
-
       <div class="panel" id="bottom-panel">
         <div class="panel-header">
           <span>bottom · columns match main (active tab below)</span>
@@ -443,7 +382,7 @@
         on the main grid (substring match, next/prev, clear) — try with 5k rows so scroll-into-view
         is obvious. Row 2500 overdue is <code>=B1</code>. Demo users resolve field/region/layout
         permissions (drag column edges to resize; <strong>Reset shared widths</strong> is
-        admin-only). The form mirrors the selected main row. Notes is a plain label/value list.
+        admin-only). Notes is a plain label/value list.
       </p>
     </div>
     <script type="module" src="/src/main.ts"></script>

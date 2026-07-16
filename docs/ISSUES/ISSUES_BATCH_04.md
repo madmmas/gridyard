@@ -75,7 +75,8 @@ dedicated web-demo PR; layout permissions deferred to Batch 05 §30.
 **Status:** done — PR [#56](https://github.com/madmmas/gridyard/pull/56) / issue [#49](https://github.com/madmmas/gridyard/issues/49)
 
 ### Spec reference
-`docs/04-layout-and-permission-engine-spec.md` — Form engine.
+`docs/04-layout-and-permission-engine-spec.md` — Form engine (historical;
+now marked out of scope).
 
 ### Context
 Named in `workspace-runtime`'s own docstring since scaffolding, never
@@ -104,7 +105,10 @@ adapter already established in batch 2.
 - [x] `npm test --workspaces --if-present` and typecheck pass
 
 ### Notes
-None yet.
+Landed in PR [#56](https://github.com/madmmas/gridyard/pull/56). **Later
+de-scoped:** form engine is out of current product focus (main + bottom
+grids only) — see `docs/04` and cleanup issue
+[#72](https://github.com/madmmas/gridyard/issues/72) / Batch 06 §31.
 
 ## 21. [workspace-runtime] Second example domain — Employee Management
 

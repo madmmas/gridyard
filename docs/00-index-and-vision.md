@@ -198,8 +198,9 @@ Tauri.
    huge-dataset handling, search.
 3. `03-workspace-schema-spec.md` — Declarative workspace definition
    format and examples.
-4. `04-layout-and-permission-engine-spec.md` — Layout engine, form
-   engine, permission engine, data binding engine.
+4. `04-layout-and-permission-engine-spec.md` — Layout engine (main +
+   bottom grids), permission engine, data binding engine. Form engine
+   explicitly out of current scope.
 5. `05-extensions-plugins-ai-spec.md` — Plugin system, custom cell
    types, workflow extensions, collaboration, AI/agent capabilities.
 6. `06-mvp-scope-and-roadmap.md` — MVP folder structure, phased roadmap,

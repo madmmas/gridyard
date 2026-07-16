@@ -1,10 +1,19 @@
-# Layout, Form, Permission, and Data Binding Engine Spec
+# Layout, Permission, and Data Binding Engine Spec
 
 ## Deliverable
 
 The "layout", "permissions", and "adapters" modules — composing
-workspace regions, rendering forms, enforcing access rules, and
+workspace regions (main and bottom grids), enforcing access rules, and
 connecting to data sources.
+
+## Current product focus
+
+Gridyard’s workspace UI is **main + bottom grid regions** (with bottom’s
+Aggregate and Notes tabs). That is the surface to build, demo, and
+harden. A structured **form engine** (record-as-form panels alongside the
+grid) is **out of scope** for the current product — see “Form engine
+(out of scope)” below. Existing form code and schema fields may remain
+until removed by a tracked cleanup issue; they must not drive new work.
 
 ## Layout engine
 
@@ -121,16 +130,22 @@ of error) is intentionally left undecided for now — revisit once the
 formula engine and cross-region referencing are actually built and there's
 real usage to reason about, rather than deciding upfront.
 
-## Form engine
+## Form engine (out of scope)
 
-The same underlying data can be displayed as a structured form instead
-of a grid. Capabilities: dynamic forms, conditional fields, validation
-rules, sections, tabs, field groups, and a mix of read-only and editable
-fields.
+**Not in current scope.** Earlier drafts described displaying the same
+underlying data as a structured form (sections, field groups, conditional
+fields, validation) alongside or instead of the grid — for example a
+customer-information form with multiple sections.
 
-For example, a customer information form might have a "Customer
-Information" section with name, email, and address fields, followed by
-an "Additional Information" section with a notes field.
+That path is **deferred indefinitely / removed from the product focus**.
+Do not expand form schema, form rendering, or form chrome in the demo.
+New layout and permission work should assume **main and bottom grids
+only**. If a form surface is revisited later, it should be a fresh
+spec revision, not silent revival of this section.
+
+Historical note: Batch 04 issue #49 / PR #56 shipped a first form-engine
+slice; removing that implementation from the runtime and demo is tracked
+separately (Batch 06).
 
 ## Permission engine
 

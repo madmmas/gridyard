@@ -11,6 +11,10 @@ tried and abandoned — that's the whole point of this file existing.
 
 ## 2026-07-15
 
+- **Forms de-scoped.** Product focus is main + bottom grid regions only.
+  Specs updated (`docs/04`, `03`, `06`, `00`): form engine marked out of
+  scope. Cleanup of the Batch 04 form implementation tracked as
+  [#72](https://github.com/madmmas/gridyard/issues/72) / Batch 06 §31.
 - Issue [#25](https://github.com/madmmas/gridyard/issues/25) (type-to-edit
   polish): with the canvas focused, a printable key **type-over-replaces**
   the selected cell into the formula bar; `F2` and double-click open the bar

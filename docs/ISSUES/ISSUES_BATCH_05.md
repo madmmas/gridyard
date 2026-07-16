@@ -7,7 +7,7 @@
 | 25 | [#58](https://github.com/madmmas/gridyard/issues/58) | Real scroll host and a large dataset, wiring virtualization + rAF batching | [#66](https://github.com/madmmas/gridyard/pull/66) |
 | 26 | [#59](https://github.com/madmmas/gridyard/issues/59) | Wire search UI into the running demo | [#67](https://github.com/madmmas/gridyard/pull/67) |
 | 27 | [#60](https://github.com/madmmas/gridyard/issues/60) | Clipboard — copy, cut, paste | [#68](https://github.com/madmmas/gridyard/pull/68) |
-| 28 | [#61](https://github.com/madmmas/gridyard/issues/61) | Sort and filter via index vectors | — |
+| 28 | [#61](https://github.com/madmmas/gridyard/issues/61) | Sort and filter via index vectors | [#69](https://github.com/madmmas/gridyard/pull/69) |
 | 29 | [#62](https://github.com/madmmas/gridyard/issues/62) | CSV import/export | — |
 | 30 | [#63](https://github.com/madmmas/gridyard/issues/63) | Layout permissions enforcement | — |
 
@@ -170,7 +170,7 @@ unimplemented. This issue picks up clipboard specifically.
 
 ## 28. [gridyard-grid] Sort and filter via index vectors
 
-**Status:** done — PR pending / issue [#61](https://github.com/madmmas/gridyard/issues/61)
+**Status:** done — PR [#69](https://github.com/madmmas/gridyard/pull/69) / issue [#61](https://github.com/madmmas/gridyard/issues/61)
 
 ### Spec reference
 `docs/01-grid-engine-core-spec.md` — Sorting/filtering/search section.

@@ -2,11 +2,12 @@
 
 **Batch status (2026-07-15):** Specs de-scoped in PR
 [#73](https://github.com/madmmas/gridyard/pull/73); §31 code removal in
+PR [#74](https://github.com/madmmas/gridyard/pull/74) /
 [#72](https://github.com/madmmas/gridyard/issues/72).
 
 | Batch § | GitHub | Title | PR |
 |---------|--------|-------|----|
-| 31 | [#72](https://github.com/madmmas/gridyard/issues/72) | Remove form engine from product scope | — |
+| 31 | [#72](https://github.com/madmmas/gridyard/issues/72) | Remove form engine from product scope | [#74](https://github.com/madmmas/gridyard/pull/74) |
 
 Batch 05 closed the demo-wiring and remaining crate slices (§25–§30).
 Direction change: **structured forms are out of product scope**. Specs
@@ -18,7 +19,7 @@ that Batch 04 §20 shipped, so code matches the updated docs.
 
 ## 31. [workspace-runtime / web-demo] Remove form engine from product scope
 
-**Status:** in progress — issue [#72](https://github.com/madmmas/gridyard/issues/72)
+**Status:** done — PR [#74](https://github.com/madmmas/gridyard/pull/74) / issue [#72](https://github.com/madmmas/gridyard/issues/72)
 
 ### Spec reference
 `docs/04-layout-and-permission-engine-spec.md` — Form engine (out of

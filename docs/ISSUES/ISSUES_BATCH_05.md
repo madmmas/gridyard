@@ -1,6 +1,6 @@
 # Fifth issue batch — close the demo-wiring gap, then the last untouched crates
 
-**Batch status (2026-07-15):** §25–§27 merged; §28 in flight; §29–§30 still open.
+**Batch status (2026-07-15):** §25–§28 merged; §29 in flight; §30 still open.
 
 | Batch § | GitHub | Title | PR |
 |---------|--------|-------|----|
@@ -208,7 +208,7 @@ never touch `SparseGrid` cells. Sort compares via `CellValueSource`
 
 ## 29. [gridyard-io] CSV import/export
 
-**Status:** open — issue [#62](https://github.com/madmmas/gridyard/issues/62)
+**Status:** done — PR pending / issue [#62](https://github.com/madmmas/gridyard/issues/62)
 
 ### Spec reference
 `docs/01-grid-engine-core-spec.md` — Import/export section (CSV now, xlsx later per this crate's own doc comment).
@@ -224,17 +224,22 @@ crate's own doc comment already scopes xlsx as later work — don't scope
 - Import: parse a CSV into a new grid, one cell per value, as literals (not attempting to infer formulas from CSV text)
 - Reasonable handling of CSV edge cases: quoted fields containing commas, embedded newlines, empty cells
 
+**Out of scope:**
+- xlsx / ods / demo file-picker UI
+
 ### Acceptance criteria
-- [ ] Exporting a grid with formulas produces a CSV of computed values, not formula text
-- [ ] Importing a CSV with quoted/escaped fields parses correctly, not just the simple comma-separated case
-- [ ] Round-tripping export → import produces the same literal values (formulas are expected to be lost — that's inherent to CSV, not a bug)
+- [x] Exporting a grid with formulas produces a CSV of computed values, not formula text
+- [x] Importing a CSV with quoted/escaped fields parses correctly, not just the simple comma-separated case
+- [x] Round-tripping export → import produces the same literal values (formulas are expected to be lost — that's inherent to CSV, not a bug)
 
 ### Testing requirements
-- [ ] Table-driven tests covering standard CSV, quoted fields, embedded commas/newlines, empty cells, and the export-then-import round trip
-- [ ] `cargo fmt --check && cargo clippy -- -D warnings && cargo test --workspace` passes
+- [x] Table-driven tests covering standard CSV, quoted fields, embedded commas/newlines, empty cells, and the export-then-import round trip
+- [x] `cargo fmt --check && cargo clippy -- -D warnings && cargo test --workspace` passes
 
 ### Notes
-None yet.
+RFC 4180–style parser/writer in `gridyard-io` (no external CSV crate).
+`export_csv` via `CsvValueSource`; `import_csv` → `CsvTable` /
+`to_sparse_grid()` stores fields as literal text.
 
 ---
 

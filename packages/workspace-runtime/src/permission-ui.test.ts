@@ -7,6 +7,9 @@ import {
 import {
   accessForPaintColumn,
   authorizeFieldEdit,
+  authorizeLayoutPersonalize,
+  authorizeLayoutResize,
+  authorizeModifySharedLayout,
   isRegionVisible,
   projectColumnsForPermissions,
 } from "./permission-ui.js";
@@ -45,14 +48,18 @@ describe("LOAN_REVIEW_PERMISSIONS sample users", () => {
     expect(getFieldAccess(alex, "overdue")).toBe("edit");
     expect(getFieldAccess(alex, "daysLate")).toBe("edit");
     expect(isRegionVisible(alex, "bottom")).toBe(true);
+    expect(alex.layout.canResize).toBe(true);
+    expect(alex.layout.canModifySharedLayout).toBe(true);
 
     const blair = resolvePermissions(LOAN_REVIEW_PERMISSIONS, blairUser.position);
     expect(getFieldAccess(blair, "overdue")).toBe("view");
     expect(isFieldHidden(blair, "daysLate")).toBe(false);
+    expect(blair.layout.canResize).toBe(false);
 
     const casey = resolvePermissions(LOAN_REVIEW_PERMISSIONS, caseyUser.position);
     expect(isFieldHidden(casey, "daysLate")).toBe(true);
     expect(isRegionVisible(casey, "bottom")).toBe(false);
+    expect(casey.layout.canPersonalize).toBe(false);
   });
 });
 
@@ -110,5 +117,55 @@ describe("authorizeFieldEdit", () => {
     expect(denied.access).toBe("view");
     expect(denied.message).toMatch(/overdue/);
     expect(denied.message).toMatch(/view/);
+  });
+});
+
+describe("layout permission authorization", () => {
+  it("blocks resize for blair and allows it for alex", () => {
+    const blair = resolvePermissions(LOAN_REVIEW_PERMISSIONS, {
+      userId: "blair",
+    });
+    const alex = resolvePermissions(LOAN_REVIEW_PERMISSIONS, {
+      userId: "alex",
+    });
+    expect(authorizeLayoutResize(alex)).toEqual({ ok: true });
+    const denied = authorizeLayoutResize(blair);
+    expect(denied.ok).toBe(false);
+    if (denied.ok) {
+      throw new Error("expected denial");
+    }
+    expect(denied.action).toBe("resize");
+    expect(denied.message).toMatch(/resize/i);
+  });
+
+  it("allows shared-layout modification only for alex (admin-like)", () => {
+    const alex = resolvePermissions(LOAN_REVIEW_PERMISSIONS, {
+      userId: "alex",
+    });
+    const blair = resolvePermissions(LOAN_REVIEW_PERMISSIONS, {
+      userId: "blair",
+    });
+    const casey = resolvePermissions(LOAN_REVIEW_PERMISSIONS, {
+      userId: "casey",
+    });
+    expect(authorizeModifySharedLayout(alex)).toEqual({ ok: true });
+    expect(authorizeModifySharedLayout(blair).ok).toBe(false);
+    expect(authorizeModifySharedLayout(casey).ok).toBe(false);
+  });
+
+  it("blocks personalize for casey", () => {
+    const casey = resolvePermissions(LOAN_REVIEW_PERMISSIONS, {
+      userId: "casey",
+    });
+    const alex = resolvePermissions(LOAN_REVIEW_PERMISSIONS, {
+      userId: "alex",
+    });
+    expect(authorizeLayoutPersonalize(alex)).toEqual({ ok: true });
+    const denied = authorizeLayoutPersonalize(casey);
+    expect(denied.ok).toBe(false);
+    if (denied.ok) {
+      throw new Error("expected denial");
+    }
+    expect(denied.action).toBe("personalize");
   });
 });

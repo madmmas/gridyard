@@ -92,6 +92,16 @@ export {
 } from "./paint-batch.js";
 
 export {
+  COLUMN_RESIZE_HIT_SLOP,
+  MIN_COLUMN_WIDTH,
+  hitTestColumnResizeEdge,
+  resizeColumnByDelta,
+  resizeColumnWithPermission,
+  setColumnWidth,
+  type ColumnResizeResult,
+} from "./column-resize.js";
+
+export {
   activeSearchMatch,
   beginSearch,
   clearSearch,

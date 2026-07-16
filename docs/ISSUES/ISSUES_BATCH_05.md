@@ -1,6 +1,6 @@
 # Fifth issue batch — close the demo-wiring gap, then the last untouched crates
 
-**Batch status (2026-07-15):** §25–§28 merged; §29 in flight; §30 still open.
+**Batch status (2026-07-15):** §25–§29 merged; §30 in flight.
 
 | Batch § | GitHub | Title | PR |
 |---------|--------|-------|----|
@@ -9,7 +9,7 @@
 | 27 | [#60](https://github.com/madmmas/gridyard/issues/60) | Clipboard — copy, cut, paste | [#68](https://github.com/madmmas/gridyard/pull/68) |
 | 28 | [#61](https://github.com/madmmas/gridyard/issues/61) | Sort and filter via index vectors | [#69](https://github.com/madmmas/gridyard/pull/69) |
 | 29 | [#62](https://github.com/madmmas/gridyard/issues/62) | CSV import/export | [#70](https://github.com/madmmas/gridyard/pull/70) |
-| 30 | [#63](https://github.com/madmmas/gridyard/issues/63) | Layout permissions enforcement | — |
+| 30 | [#63](https://github.com/madmmas/gridyard/issues/63) | Layout permissions enforcement | [#71](https://github.com/madmmas/gridyard/pull/71) |
 
 Checked the live repo first. All of batch 4 merged (PRs #52–#57), but
 found a real pattern worth calling out rather than papering over: three
@@ -245,7 +245,7 @@ RFC 4180–style parser/writer in `gridyard-io` (no external CSV crate).
 
 ## 30. [workspace-runtime] Layout permissions enforcement
 
-**Status:** open — issue [#63](https://github.com/madmmas/gridyard/issues/63)
+**Status:** done — PR [#71](https://github.com/madmmas/gridyard/pull/71) / issue [#63](https://github.com/madmmas/gridyard/issues/63)
 
 ### Spec reference
 `docs/04-layout-and-permission-engine-spec.md` — Layout permissions.
@@ -265,13 +265,18 @@ currently does.
 - A shared/admin-only layout can't be modified by a non-admin user, per the resolved permission
 
 ### Acceptance criteria
-- [ ] A user without resize permission can't resize columns in the running demo, using the real resolution function, not a separate check
-- [ ] Switching the demo's sample user (from issue #19) changes layout-editing ability consistently with field/region access
-- [ ] No regression to users who do have full layout permissions — existing behavior stays unchanged for them
+- [x] A user without resize permission can't resize columns in the running demo, using the real resolution function, not a separate check
+- [x] Switching the demo's sample user (from issue #19) changes layout-editing ability consistently with field/region access
+- [x] No regression to users who do have full layout permissions — existing behavior stays unchanged for them
 
 ### Testing requirements
-- [ ] Vitest tests covering: resize blocked/allowed by permission, shared-layout admin-only enforcement
-- [ ] `npm test --workspaces --if-present` and typecheck pass
+- [x] Vitest tests covering: resize blocked/allowed by permission, shared-layout admin-only enforcement
+- [x] `npm test --workspaces --if-present` and typecheck pass
 
 ### Notes
-Check what layout-editing capability (resize, etc.) actually exists in `grid-renderer` today before scoping the enforcement work — if resize itself was never built, this issue may need to add the base capability first, not just gate an existing one.
+Resize did not exist yet — added `column-resize` in `grid-renderer` plus
+demo header-edge drag. Authorize helpers:
+`authorizeLayoutResize` / `Personalize` / `ModifySharedLayout`.
+Alex: shared-layout admin; Blair: no resize; Casey: no personalize.
+**Reset shared widths** toolbar button gates `canModifySharedLayout`.
+No full personalization persistence UI (authorize helper + tests only).

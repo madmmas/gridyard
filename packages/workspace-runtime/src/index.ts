@@ -59,10 +59,15 @@ export {
 export {
   accessForPaintColumn,
   authorizeFieldEdit,
+  authorizeLayoutPersonalize,
+  authorizeLayoutResize,
+  authorizeModifySharedLayout,
   fieldIdForPaintColumn,
   isRegionVisible,
   projectColumnsForPermissions,
   type FieldEditDecision,
+  type LayoutAction,
+  type LayoutActionDecision,
   type PermissionColumnProjection,
   type PermissionProjectedColumn,
 } from "./permission-ui.js";

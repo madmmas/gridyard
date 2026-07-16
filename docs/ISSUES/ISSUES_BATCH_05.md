@@ -8,7 +8,7 @@
 | 26 | [#59](https://github.com/madmmas/gridyard/issues/59) | Wire search UI into the running demo | [#67](https://github.com/madmmas/gridyard/pull/67) |
 | 27 | [#60](https://github.com/madmmas/gridyard/issues/60) | Clipboard — copy, cut, paste | [#68](https://github.com/madmmas/gridyard/pull/68) |
 | 28 | [#61](https://github.com/madmmas/gridyard/issues/61) | Sort and filter via index vectors | [#69](https://github.com/madmmas/gridyard/pull/69) |
-| 29 | [#62](https://github.com/madmmas/gridyard/issues/62) | CSV import/export | — |
+| 29 | [#62](https://github.com/madmmas/gridyard/issues/62) | CSV import/export | [#70](https://github.com/madmmas/gridyard/pull/70) |
 | 30 | [#63](https://github.com/madmmas/gridyard/issues/63) | Layout permissions enforcement | — |
 
 Checked the live repo first. All of batch 4 merged (PRs #52–#57), but
@@ -208,7 +208,7 @@ never touch `SparseGrid` cells. Sort compares via `CellValueSource`
 
 ## 29. [gridyard-io] CSV import/export
 
-**Status:** done — PR pending / issue [#62](https://github.com/madmmas/gridyard/issues/62)
+**Status:** done — PR [#70](https://github.com/madmmas/gridyard/pull/70) / issue [#62](https://github.com/madmmas/gridyard/issues/62)
 
 ### Spec reference
 `docs/01-grid-engine-core-spec.md` — Import/export section (CSV now, xlsx later per this crate's own doc comment).
